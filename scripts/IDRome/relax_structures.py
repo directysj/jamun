@@ -2,8 +2,8 @@
 
 import argparse
 import logging
-import os
 import multiprocessing
+import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 

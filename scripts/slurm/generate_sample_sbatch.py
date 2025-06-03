@@ -20,9 +20,8 @@ Options:
     --output OUTPUT         - Output file (default: CONFIG_NAME.sbatch)
 """
 
-import os
-import sys
 import argparse
+import os
 
 
 def parse_args():

@@ -26,6 +26,7 @@ from openmm.app import (
     Topology,
 )
 from openmm.unit import (
+    Quantity,
     angstroms,
     bar,
     kelvin,
@@ -34,7 +35,6 @@ from openmm.unit import (
     nanometer,
     nanometers,
     picoseconds,
-    Quantity,
 )
 
 Positions = List[Tuple[Vec3, ...]]

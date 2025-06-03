@@ -69,7 +69,8 @@ git_describe_command = "git describe --dirty --tags --long --match v* --first-pa
 [tool.ruff]
 line-length = 120
 exclude = [
-  "analysis"
+  "analysis",
+  "scripts"
 ]
 
 [tool.ruff.lint]

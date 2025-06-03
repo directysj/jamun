@@ -1,25 +1,27 @@
-import dotenv
-import os
 import functools
+import logging
+import os
+
+import dotenv
 import tqdm
 
-import logging
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("jamun")
 
 import torch
-torch.set_float32_matmul_precision('high')
+
+torch.set_float32_matmul_precision("high")
 
 import e3nn
 import e3tools.nn
+
 e3nn.set_optimization_defaults(jit_script_fx=False)
 
 import jamun
 import jamun.data
+import jamun.distributions
 import jamun.model
 import jamun.model.arch
-import jamun.distributions
-
 
 dotenv.load_dotenv("../.env", verbose=True)
 JAMUN_DATA_PATH = os.getenv("JAMUN_DATA_PATH")
@@ -28,7 +30,7 @@ JAMUN_DATA_PATH = os.getenv("JAMUN_DATA_PATH")
 device = torch.device("cuda:0")
 
 datasets = {
-   "train": jamun.data.parse_datasets_from_directory(
+    "train": jamun.data.parse_datasets_from_directory(
         root=f"{JAMUN_DATA_PATH}/mdgen/data/4AA_sims_partitioned_chunked/train/",
         traj_pattern="^(....)_.*.xtc",
         pdb_pattern="^(....).pdb",
@@ -62,18 +64,11 @@ arch = functools.partial(
         e3tools.nn.ConvBlock,
         conv=e3tools.nn.Conv,
     ),
-    output_head_factory=functools.partial(
-        e3tools.nn.EquivariantMLP,
-        irreps_hidden_list=["120x0e + 32x1e"]
-    )
+    output_head_factory=functools.partial(e3tools.nn.EquivariantMLP, irreps_hidden_list=["120x0e + 32x1e"]),
 )
 py_logger.info(f"Number of params: {sum(p.numel() for p in arch().parameters())}")
 
-optim = functools.partial(
-    torch.optim.Adam,
-    lr=1e-2,
-    weight_decay=0.0
-)
+optim = functools.partial(torch.optim.Adam, lr=1e-2, weight_decay=0.0)
 
 sigma_distribution = jamun.distributions.ConstantSigma(
     sigma=0.04,
@@ -118,7 +113,7 @@ for i, batch in tqdm.tqdm(enumerate(datamodule.train_dataloader()), total=n_warm
     opt.step()
     opt.zero_grad()
 
-        
+
 # Actual training.
 n_actual = 100
 torch.cuda.cudart().cudaProfilerStart()
@@ -147,9 +142,3 @@ for i, batch in tqdm.tqdm(enumerate(datamodule.train_dataloader()), total=n_actu
     torch.cuda.nvtx.range_pop()
 
 torch.cuda.cudart().cudaProfilerStop()
-
-
-
-
-
-

@@ -1,9 +1,10 @@
 """Breaks up a trajectory file into smaller chunks."""
 
-import mdtraj as md
-import os
 import argparse
+import os
 import shutil
+
+import mdtraj as md
 
 
 def split_trajectory(input_traj_file: str, input_top_file: str, chunk_size: int, output_dir: str) -> None:

@@ -2,12 +2,11 @@
 
 import argparse
 import logging
-import os
 import multiprocessing
-import subprocess
-import time
-import mdtraj as md
+import os
 from concurrent.futures import ProcessPoolExecutor
+
+import mdtraj as md
 
 from jamun.utils.slurm import wait_for_jobs
 

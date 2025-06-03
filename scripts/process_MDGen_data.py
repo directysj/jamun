@@ -1,14 +1,14 @@
 """Script to process MDGen data into splits for training and testing."""
 
-from typing import Tuple, Optional
 import argparse
-import os
-import requests
 import multiprocessing
+import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
+from typing import Optional, Tuple
 
 import pandas as pd
+import requests
 
 
 def run_preprocess(args, use_srun: bool = True) -> Tuple[str, Optional[str]]:

@@ -1,14 +1,12 @@
 """Script to copy over IDRome v4 data."""
 
-from typing import Tuple, Optional, List
 import argparse
 import logging
-import os
 import multiprocessing
+import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
-
-import pandas as pd
+from typing import List
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("process_IDRome")

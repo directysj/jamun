@@ -3,9 +3,8 @@
 import argparse
 import logging
 import os
-import multiprocessing
+
 import mdtraj as md
-from concurrent.futures import ProcessPoolExecutor
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("process_IDRome")

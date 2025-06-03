@@ -3,13 +3,8 @@
 import argparse
 import logging
 import os
-import multiprocessing
-import subprocess
-import time
-import mdtraj as md
-from concurrent.futures import ProcessPoolExecutor
 
-from jamun.utils.slurm import wait_for_jobs
+import mdtraj as md
 
 # Set up logging
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)

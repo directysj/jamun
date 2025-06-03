@@ -1,7 +1,8 @@
-from rdkit import Chem
-import numpy as np
 import argparse
 import os
+
+import numpy as np
+from rdkit import Chem
 
 from jamun import utils
 
