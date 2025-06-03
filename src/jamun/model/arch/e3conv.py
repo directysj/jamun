@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable
 
 import e3nn
@@ -6,8 +5,8 @@ import torch
 import torch_geometric
 from e3nn import o3
 from e3nn.o3 import Irreps
-from torch import Tensor
 from e3tools import scatter
+from torch import Tensor
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 from jamun.model.noise_conditioning import NoiseConditionalScaling, NoiseConditionalSkipConnection

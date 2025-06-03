@@ -1,25 +1,27 @@
-from typing import Callable, Optional, Tuple, List
 import functools
-import tempfile
 import os
+import tempfile
+from typing import Callable, List, Optional, Tuple
 
+import mdtraj as md
 import numpy as np
 import torch
 import torch.utils.data
 import torch_geometric
-import mdtraj as md
 from rdkit import Chem
 
 from jamun import utils
 
 
-def load_preprocessed_data(sdf_file: str, traj_file: str) -> Tuple[torch_geometric.data.Data, Chem.Mol, Chem.Mol, List[Chem.Mol]]:
+def load_preprocessed_data(
+    sdf_file: str, traj_file: str
+) -> Tuple[torch_geometric.data.Data, Chem.Mol, Chem.Mol, List[Chem.Mol]]:
     """
     Loads preprocessed data from an SDF file and a trajectory file, returning a PyTorch Geometric Data object and the corresponding RDKit molecules.
-    
+
     Args:
         sdf_file (str): The input SDF file path.
-    
+
     Returns:
         Tuple[torch_geometric.data.Data, Chem.Mol, Chem.Mol, np.ndarray]: A tuple containing:
             - A PyTorch Geometric Data object.
@@ -68,17 +70,16 @@ class MDtrajSDFDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        root: str, 
+        root: str,
         sdf_file: str,
         traj_files: List[str],
         label: str,
         num_frames: Optional[int] = None,
-        start_frame: Optional[int] = None, 
-        transform: Optional[Callable] = None, 
+        start_frame: Optional[int] = None,
+        transform: Optional[Callable] = None,
         subsample: Optional[int] = None,
-        loss_weight: float = 1.0, 
+        loss_weight: float = 1.0,
     ):
-
         self.root = root
         self._label = label
         self.transform = transform
@@ -88,24 +89,30 @@ class MDtrajSDFDataset(torch.utils.data.Dataset):
         self.sdf_file = os.path.join(self.root, sdf_file)
 
         if len(traj_files) > 1:
-            raise NotImplementedError(f"Multiple trajectory files found: {traj_files}. Please provide a single trajectory file.")
+            raise NotImplementedError(
+                f"Multiple trajectory files found: {traj_files}. Please provide a single trajectory file."
+            )
         self.traj_file = os.path.join(self.root, traj_files[0])
 
         self.start_frame = 0 if start_frame is None else start_frame
         self.subsample = 1 if subsample is None or subsample == 0 else subsample
 
-        self.data, self.rdkit_mol, self.rdkit_mol_withH, self.positions = load_preprocessed_data(self.sdf_file, self.traj_file)
+        self.data, self.rdkit_mol, self.rdkit_mol_withH, self.positions = load_preprocessed_data(
+            self.sdf_file, self.traj_file
+        )
         self.data.loss_weight = torch.tensor([self.loss_weight], dtype=torch.float32)
         self.data.dataset_label = self.label()
 
         # Subsample the trajectory.
         if self.num_frames is None:
             self.num_frames = self.positions.shape[0]
-        self.positions = self.positions[self.start_frame: self.start_frame + self.num_frames: self.subsample]
+        self.positions = self.positions[self.start_frame : self.start_frame + self.num_frames : self.subsample]
 
         num_frames = self.positions.shape[0]
         num_atoms = self.positions.shape[1]
-        assert self.positions.shape == (num_frames, num_atoms, 3), f"Positions shape mismatch: {self.positions.shape} != ({num_frames}, {num_atoms}, 3)"
+        assert self.positions.shape == (num_frames, num_atoms, 3), (
+            f"Positions shape mismatch: {self.positions.shape} != ({num_frames}, {num_atoms}, 3)"
+        )
 
     def preprocess_topology(self):
         if self.preprocessed_topology:
@@ -120,8 +127,10 @@ class MDtrajSDFDataset(torch.utils.data.Dataset):
 
         self.traj = md.load_pdb(tmp_pdb)
         self.traj.xyz = self.positions
-        assert len(self.traj) == len(self.positions), f"Number of frames in trajectory {len(self.traj)} does not match positions {len(self.positions)}."
-        
+        assert len(self.traj) == len(self.positions), (
+            f"Number of frames in trajectory {len(self.traj)} does not match positions {len(self.positions)}."
+        )
+
         os.remove(tmp_pdb)
         self.preprocessed_topology = True
 
@@ -134,7 +143,7 @@ class MDtrajSDFDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.positions)
-    
+
     @functools.cached_property
     def topology(self) -> md.Topology:
         if not self.preprocessed_topology:

@@ -77,6 +77,7 @@ class VisualizeDenoise(pl.Callback):
 
             visualizer.reset()
 
+
 # class VisualizeDenoiseSDF(pl.Callback):
 #     """Callback to denoise and visualize MDTraj datasets during training."""
 

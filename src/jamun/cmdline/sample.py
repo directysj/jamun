@@ -4,6 +4,7 @@ import traceback
 from typing import Sequence
 
 import dotenv
+import e3nn
 import hydra
 import lightning.pytorch as pl
 import torch
@@ -11,7 +12,6 @@ import torch_geometric
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import OmegaConf
 
-import e3nn
 e3nn.set_optimization_defaults(jit_script_fx=False)
 
 import jamun

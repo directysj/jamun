@@ -44,7 +44,8 @@ class NoiseConditionalScaling(nn.Module):
         self.irreps_in = irreps_in
         self.irreps_out = irreps_in
         self.tp = e3nn.o3.ElementwiseTensorProduct(
-            self.irreps_in, f"{self.irreps_in.num_irreps}x0e",
+            self.irreps_in,
+            f"{self.irreps_in.num_irreps}x0e",
         )
 
     def forward(self, x: torch.Tensor, c_noise: torch.Tensor) -> torch.Tensor:
@@ -63,7 +64,8 @@ class NoiseConditionalSkipConnection(nn.Module):
         self.irreps_in = irreps_in
         self.irreps_out = irreps_in
         self.tp = e3nn.o3.ElementwiseTensorProduct(
-            self.irreps_in, f"{self.irreps_in.num_irreps}x0e",
+            self.irreps_in,
+            f"{self.irreps_in.num_irreps}x0e",
         )
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor, c_noise: torch.Tensor) -> torch.Tensor:

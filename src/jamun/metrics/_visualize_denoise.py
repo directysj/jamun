@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Tuple
 import einops
 import matplotlib.pyplot as plt
 import mdtraj as md
-import py3Dmol
 import torch
 import torch_geometric
 import torchmetrics
@@ -148,7 +147,11 @@ class VisualizeDenoiseMetrics(torchmetrics.Metric):
                 fig, _ = plot_ramachandran_grid(sigma_trajs, self.dataset.label())
 
                 utils.wandb_dist_log(
-                    {f"{self.dataset.label()}/visualize_denoise/ramachandran_plots_static/sigma={sigma}": wandb.Image(fig)}
+                    {
+                        f"{self.dataset.label()}/visualize_denoise/ramachandran_plots_static/sigma={sigma}": wandb.Image(
+                            fig
+                        )
+                    }
                 )
                 plt.close(fig)
         except ValueError:

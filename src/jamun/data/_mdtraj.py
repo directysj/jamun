@@ -1,6 +1,6 @@
-from typing import Callable, Optional, Sequence, Tuple
 import functools
 import os
+from typing import Callable, Optional, Sequence, Tuple
 
 import mdtraj as md
 import numpy as np
@@ -147,7 +147,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
 
         pdb_file = os.path.join(self.root, pdb_file)
         traj_files = [os.path.join(self.root, filename) for filename in traj_files]
-       
+
         self.traj_files = traj_files
         self.pdb_file = pdb_file
 

@@ -3,7 +3,7 @@ import tempfile
 from typing import List
 
 import mdtraj as md
-from rdkit import Chem, rdBase, RDLogger
+from rdkit import Chem, RDLogger, rdBase
 
 RDLogger.DisableLog("rdApp.*")
 

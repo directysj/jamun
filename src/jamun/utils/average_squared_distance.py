@@ -1,5 +1,5 @@
-from typing import Optional, Sequence
 import collections
+from typing import Optional, Sequence
 
 import numpy as np
 import torch
@@ -24,7 +24,9 @@ def compute_distance_matrix(x: np.ndarray, cutoff: Optional[float] = None) -> np
         mask = mask & (dist_x < cutoff)
 
     if not np.any(mask):
-        raise ValueError(f"No distances below cutoff {cutoff} found in the distance matrix: min {dist_x[dist_x > 0].min()} and max {dist_x[dist_x > 0].max()}.")
+        raise ValueError(
+            f"No distances below cutoff {cutoff} found in the distance matrix: min {dist_x[dist_x > 0].min()} and max {dist_x[dist_x > 0].max()}."
+        )
 
     dist_x = dist_x[..., mask]
     return dist_x
@@ -45,10 +47,10 @@ def compute_average_squared_distance_from_datasets(
 ) -> float:
     """Computes the average squared distance for normalization."""
     avg_sq_dists = collections.defaultdict(list)
-    
+
     for dataset in datasets[:num_estimation_datasets]:
         num_graphs = 0
-        
+
         for graph in dataset:
             pos = np.asarray(graph.pos)
             avg_sq_dist = compute_average_squared_distance(pos, cutoff=cutoff)

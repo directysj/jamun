@@ -1,10 +1,10 @@
-from typing import List, Optional, Sequence
 import collections
 import os
 import re
+from typing import List, Optional, Sequence
 
-import pandas as pd
 import hydra
+import pandas as pd
 import requests
 import torch
 from tqdm.auto import tqdm
@@ -134,16 +134,16 @@ def parse_datasets_from_directory_new(
     """Helper function to create MDtrajDataset objects from a directory of trajectory files."""
     if topology_file is not None and topology_pattern is not None:
         raise ValueError("Exactly one of pdb_file and pdb_pattern should be provided.")
-    
+
     # Compile the regex patterns
     traj_pattern_compiled = re.compile(traj_pattern)
     if topology_pattern is not None:
         topology_pattern_compiled = re.compile(topology_pattern)
-    
+
     # Find all trajectory files recursively
     traj_files = collections.defaultdict(list)
     codes = set()
-    
+
     for dirpath, _, filenames in os.walk(root):
         rel_dirpath = os.path.relpath(dirpath, root)
         for filename in filenames:
@@ -154,10 +154,10 @@ def parse_datasets_from_directory_new(
                 code = os.path.basename(code)
                 codes.add(code)
                 traj_files[code].append(filepath)
-    
+
     if len(codes) == 0:
         raise ValueError("No codes found in directory.")
-    
+
     # Find all topology (.pdb or .sdf) files recursively
     topology_files = {}
     if topology_pattern is not None:
@@ -184,13 +184,13 @@ def parse_datasets_from_directory_new(
         max_datasets=max_datasets,
         max_datasets_offset=max_datasets_offset,
     )
-    
+
     if len(codes) == 0:
         raise ValueError("No codes found after filtering.")
 
     # Determine dataset class
     if as_sdf:
-        dataset_fn = lambda code: MDtrajSDFDataset(
+        dataset_fn = lambda code: MDtrajSDFDataset(  # noqa: E731
             root,
             traj_files=traj_files[code],
             sdf_file=topology_files[code],
@@ -199,7 +199,7 @@ def parse_datasets_from_directory_new(
         )
     else:
         if as_iterable:
-            dataset_fn = lambda code: MDtrajIterableDataset(
+            dataset_fn = lambda code: MDtrajIterableDataset(  # noqa: E731
                 root,
                 traj_files=traj_files[code],
                 pdb_file=topology_files[code],
@@ -207,7 +207,7 @@ def parse_datasets_from_directory_new(
                 **dataset_kwargs,
             )
         else:
-            dataset_fn = lambda code: MDtrajDataset(
+            dataset_fn = lambda code: MDtrajDataset(  # noqa: E731
                 root,
                 traj_files=traj_files[code],
                 pdb_file=topology_files[code],
@@ -222,10 +222,10 @@ def parse_datasets_from_directory_new(
         if code not in topology_files:
             print(f"Warning: No topology file found for code {code}, skipping.")
             continue
-            
+
         dataset = dataset_fn(code)
         datasets.append(dataset)
-    
+
     return datasets
 
 
@@ -240,7 +240,7 @@ def parse_sdf_datasets_from_directory(
     filter_codes_csv_header: Optional[str] = None,
     **dataset_kwargs,
 ) -> List[MDtrajDataset]:
-    """Helper function to create MDtrajDataset objects from a directory of trajectory files."""    
+    """Helper function to create MDtrajDataset objects from a directory of trajectory files."""
     # Compile the regex patterns
     traj_pattern_compiled = re.compile(traj_pattern)
 
@@ -298,7 +298,7 @@ def filter_and_subset_codes(
     max_datasets_offset: Optional[int],
 ):
     """Get a list of codes from the dataset."""
-    
+
     if filter_codes_csv is not None:
         if filter_codes is not None:
             raise ValueError("Only one of filter_codes and filter_codes_csv should be provided.")
@@ -317,6 +317,7 @@ def filter_and_subset_codes(
         codes = codes[:max_datasets]
 
     return codes
+
 
 def concatenate_datasets(datasets: Sequence[Sequence[MDtrajDataset]]) -> List[MDtrajDataset]:
     """Concatenate multiple lists of datasets into one list."""

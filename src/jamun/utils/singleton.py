@@ -1,5 +1,6 @@
 import threading
 
+
 def singleton(cls):
     """
     Decorator that implements the singleton pattern by modifying __init__.
