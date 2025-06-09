@@ -1,23 +1,23 @@
+from typing import Callable, Tuple
 import functools
 import logging
-from typing import Callable
 
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch_geometric
 from e3tools import radius_graph, scatter
-from torch import Tensor
 
 from jamun.utils import align_A_to_B_batched, mean_center, unsqueeze_trailing
 
 
-def energy_f(y: Tensor, g: Callable, sigma) -> Tensor:
+def energy_f(y: torch.Tensor, g: Callable[[torch.Tensor], torch.Tensor], sigma: torch.Tensor) -> torch.Tensor:
+    """Compute the energy function."""
     return (g(y) - y).pow(2).sum() / (2 * (sigma**2))
 
 
-def xhat_f(y: Tensor, g: Callable) -> Tensor:
-    # NOTE g must be Tensor to Tensor
+def xhat_f(y: torch.Tensor, g: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+    """Compute the denoiser."""
     g_y, vjp_func = torch.func.vjp(g, y)
     return g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
 
@@ -34,7 +34,7 @@ def jamun_normalization_factors(sigma: float, average_squared_distance: float, D
     return c_in, c_skip, c_out, c_noise
 
 
-def norm_wrapper(y: Tensor, g: Callable, c_in: Tensor, c_skip: Tensor, c_out: Tensor) -> Tensor:
+def norm_wrapper(y: torch.Tensor, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor) -> torch.Tensor:
     return c_skip * y + c_out * g(c_in * y)
 
 
@@ -109,7 +109,7 @@ class EnergyModel(pl.LightningModule):
 
         self.bond_loss_coefficient = bond_loss_coefficient
 
-    def add_noise(self, x: torch_geometric.data.Batch, sigma: float | Tensor) -> torch_geometric.data.Batch:
+    def add_noise(self, x: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
         # pos [B, ...]
         sigma = unsqueeze_trailing(sigma, x.pos.ndim)
 
@@ -133,12 +133,12 @@ class EnergyModel(pl.LightningModule):
             y.pos = -y.pos
         return y
 
-    def score(self, y: torch_geometric.data.Batch, sigma: float | Tensor) -> torch_geometric.data.Batch:
+    def score(self, y: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
         """Compute the score function."""
         sigma = torch.as_tensor(sigma).to(y.pos)
         return (self.xhat(y, sigma).pos - y.pos) / (unsqueeze_trailing(sigma, y.pos.ndim - 1) ** 2)
 
-    def effective_radial_cutoff(self, sigma: float | Tensor) -> Tensor:
+    def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
@@ -172,7 +172,7 @@ class EnergyModel(pl.LightningModule):
         y.bond_mask = bond_mask
         return y
 
-    def xhat_normalized(self, y: torch_geometric.data.Batch, sigma: float | Tensor) -> torch_geometric.data.Batch:
+    def xhat_normalized(self, y: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
         """Compute the denoised prediction using the normalization factors from JAMUN."""
         sigma = torch.as_tensor(sigma).to(y.pos)
 
@@ -204,7 +204,7 @@ class EnergyModel(pl.LightningModule):
 
         return xhat
 
-    def xhat(self, y: Tensor, sigma: float | Tensor):
+    def xhat(self, y: torch.Tensor, sigma: float | torch.Tensor):
         """Compute the denoised prediction."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_y"):
@@ -223,9 +223,9 @@ class EnergyModel(pl.LightningModule):
     def noise_and_denoise(
         self,
         x: torch_geometric.data.Batch,
-        sigma: float | Tensor,
+        sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> tuple[torch_geometric.data.Batch, torch_geometric.data.Batch]:
+    ) -> Tuple[torch_geometric.data.Batch, torch_geometric.data.Batch]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
@@ -254,9 +254,9 @@ class EnergyModel(pl.LightningModule):
     def compute_loss(
         self,
         x: torch_geometric.data.Batch,
-        xhat: Tensor,
-        sigma: float | Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+        xhat: torch.Tensor,
+        sigma: float | torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute the loss."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_x"):
@@ -293,9 +293,9 @@ class EnergyModel(pl.LightningModule):
     def noise_and_compute_loss(
         self,
         x: torch_geometric.data.Batch,
-        sigma: float | Tensor,
+        sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Add noise to the input and compute the loss."""
         xhat, _ = self.noise_and_denoise(x, sigma, align_noisy_input=align_noisy_input)
         return self.compute_loss(x, xhat, sigma)

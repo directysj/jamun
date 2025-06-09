@@ -6,7 +6,6 @@ import torch_geometric
 from e3nn import o3
 from e3nn.o3 import Irreps
 from e3tools import scatter
-from torch import Tensor
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 from jamun.model.noise_conditioning import NoiseConditionalScaling, NoiseConditionalSkipConnection
@@ -99,9 +98,9 @@ class E3Conv(torch.nn.Module):
 
     def forward(
         self,
-        pos: Tensor,
+        pos: torch.Tensor,
         topology: torch_geometric.data.Batch,
-        c_noise: Tensor,
+        c_noise: torch.Tensor,
         effective_radial_cutoff: float,
     ) -> torch_geometric.data.Batch:
         # Extract edge attributes.

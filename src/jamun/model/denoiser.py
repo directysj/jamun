@@ -1,5 +1,5 @@
-import logging
 from typing import Callable, Dict, Optional, Tuple, Union
+import logging
 
 import lightning.pytorch as pl
 import numpy as np
@@ -32,6 +32,7 @@ class Denoiser(pl.LightningModule):
         lr_scheduler_config: Optional[Dict] = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: Optional[Dict] = None,
+        alignment_correction_order: int = 0,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -97,6 +98,7 @@ class Denoiser(pl.LightningModule):
             raise ValueError("sigma_data can only be used when normalization_type is 'EDM'")
 
         self.bond_loss_coefficient = bond_loss_coefficient
+        self.alignment_correction_order = alignment_correction_order
 
     def add_noise(self, x: torch_geometric.data.Batch, sigma: Union[float, torch.Tensor]) -> torch_geometric.data.Batch:
         # pos [B, ...]
@@ -267,7 +269,7 @@ class Denoiser(pl.LightningModule):
             # Aligning each batch.
             if align_noisy_input:
                 with torch.cuda.nvtx.range("align_A_to_B_batched"):
-                    y = align_A_to_B_batched(y, x)
+                    y = align_A_to_B_batched(y, x, sigma=sigma, correction_order=self.alignment_correction_order)
 
         with torch.cuda.nvtx.range("xhat"):
             xhat = self.xhat(y, sigma)
