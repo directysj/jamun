@@ -499,14 +499,11 @@ def plot_ramachandran_against_all_trajectories(results_df: pd.DataFrame, peptide
 
     row = results_df[results_df["peptide"] == peptide].iloc[0]
     traj_names = row["results"]["PMFs"].keys()
-    traj_names = ["ref_traj"] + [
+    traj_names = ["ref_traj", "ref_traj_10x"] + [
         traj
         for traj in traj_names
         if traj not in ["ref_traj", "ref_traj_10x", "ref_traj_100x", "ref_traj_1000x", "TBG_200x"]
     ]
-
-    if len(traj_names) == 2:
-        traj_names = ["ref_traj", "traj", "ref_traj_10x"]
 
     fig, axs = plt.subplots(len(traj_names), num_dihedrals, figsize=(max(3 * num_dihedrals, 12), 8), squeeze=False)
     for j in range(num_dihedrals):

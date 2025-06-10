@@ -10,7 +10,6 @@ import pandas as pd
 import tqdm
 
 from jamun import data, utils
-import utils_sdf as analysis_utils_sdf
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("analysis")
