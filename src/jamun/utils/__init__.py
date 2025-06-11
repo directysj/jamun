@@ -1,3 +1,4 @@
+from .atom_graphs import to_atom_graphs
 from .align import align_A_to_B, align_A_to_B_batched
 from .average_squared_distance import compute_average_squared_distance, compute_average_squared_distance_from_datasets
 from .checkpoint import find_checkpoint, find_checkpoint_directory, get_run_path_for_wandb_run, get_wandb_run_config
