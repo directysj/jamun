@@ -7,7 +7,7 @@ import torch
 import torch_geometric
 from e3tools import radius_graph, scatter
 
-from jamun.utils import align_A_to_B_batched, mean_center, unsqueeze_trailing
+from jamun.utils import align_A_to_B_batched, mean_center, unsqueeze_trailing, to_atom_graphs
 
 
 class Denoiser(pl.LightningModule):
@@ -32,6 +32,7 @@ class Denoiser(pl.LightningModule):
         lr_scheduler_config: Optional[Dict] = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: Optional[Dict] = None,
+        pass_topology_as_atom_graphs: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -50,6 +51,8 @@ class Denoiser(pl.LightningModule):
         self.lr_scheduler_config = lr_scheduler_config
         self.sigma_distribution = sigma_distribution
         self.max_radius = max_radius
+        if self.max_radius is None:
+            raise ValueError("max_radius must be provided")
 
         self.add_fixed_noise = add_fixed_noise
         self.add_fixed_ones = add_fixed_ones
@@ -97,6 +100,7 @@ class Denoiser(pl.LightningModule):
             raise ValueError("sigma_data can only be used when normalization_type is 'EDM'")
 
         self.bond_loss_coefficient = bond_loss_coefficient
+        self.pass_topology_as_atom_graphs = pass_topology_as_atom_graphs
 
     def add_noise(self, x: torch_geometric.data.Batch, sigma: Union[float, torch.Tensor]) -> torch_geometric.data.Batch:
         # pos [B, ...]
@@ -221,8 +225,13 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("clone_y"):
             xhat = y.clone("pos")
 
+        pos = y_scaled.pos
+        if self.pass_topology_as_atom_graphs:
+            with torch.cuda.nvtx.range("to_atom_graphs"):
+                y_scaled = to_atom_graphs(y_scaled)
+
         with torch.cuda.nvtx.range("g"):
-            g_pred = self.g(y_scaled.pos, topology=y_scaled, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
+            g_pred = self.g(pos=pos, topology=y_scaled, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
 
         xhat.pos = c_skip * y.pos + c_out * g_pred
         return xhat
