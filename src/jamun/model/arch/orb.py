@@ -57,7 +57,6 @@ class MoleculeGNSWrapper(torch.nn.Module):
         topology: AtomGraphs,
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
-    ) -> torch.Tensor:        
+    ) -> torch.Tensor:
         del pos, c_noise, effective_radial_cutoff
         return self.model(topology)["pred"]
-        

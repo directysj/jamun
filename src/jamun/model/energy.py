@@ -33,7 +33,9 @@ def jamun_normalization_factors(sigma: float, average_squared_distance: float, D
     return c_in, c_skip, c_out, c_noise
 
 
-def norm_wrapper(y: torch.Tensor, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor) -> torch.Tensor:
+def norm_wrapper(
+    y: torch.Tensor, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor
+) -> torch.Tensor:
     return c_skip * y + c_out * g(c_in * y)
 
 

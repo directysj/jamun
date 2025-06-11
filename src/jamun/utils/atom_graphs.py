@@ -40,7 +40,7 @@ def to_atom_graphs(
     if topology.get("atom_type_index", None) is not None:
         node_features["atomic_numbers"] = topology.atom_type_index
         node_features["atomic_numbers_embedding"] = topology.atom_type_index
-    
+
     # Other residue-specific node features
     if topology.get("atom_code_index", None) is not None:
         node_features["atom_code_index"] = topology.atom_code_index
