@@ -172,7 +172,7 @@ class Denoiser(pl.LightningModule):
 
     def add_edges(self, y: torch_geometric.data.Batch, radial_cutoff: float) -> torch_geometric.data.Batch:
         """Add edges to the graph based on the effective radial cutoff."""
-        if y.edge_index is not None:
+        if y.get("edge_index") is not None:
             return y
 
         if "batch" in y:
