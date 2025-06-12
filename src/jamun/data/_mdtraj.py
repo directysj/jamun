@@ -31,7 +31,7 @@ def make_graph_from_topology(
         atom_code_index=atom_code_index,
         residue_index=residue_sequence_index,
         num_residues=residue_sequence_index.max().item() + 1,
-        edge_index=bonds,
+        bonded_edge_index=bonds,
         pos=None,
     )
     graph.residues = [x.residue.name for x in topology.atoms]
