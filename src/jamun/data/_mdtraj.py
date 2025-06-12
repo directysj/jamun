@@ -94,9 +94,11 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
     def label(self):
         return self._label
 
-    def save_topology_pdb(self):
-        os.makedirs("dataset_pdbs", exist_ok=True)
-        filename = f"dataset_pdbs/{self.label()}.pdb"
+    def save_topology_pdb(self, filename: Optional[str] = None):
+        """Save the final topology as a PDB file."""
+        if filename is None:
+            os.makedirs("dataset_pdbs", exist_ok=True)
+            filename = f"dataset_pdbs/{self.label()}.pdb"
         traj = next(md.iterload(self.traj_files[0], top=self.top, chunk=self.chunk_size))
         utils.save_pdb(traj[0], filename)
 
@@ -193,9 +195,11 @@ class MDtrajDataset(torch.utils.data.Dataset):
     def label(self):
         return self._label
 
-    def save_topology_pdb(self):
-        os.makedirs("dataset_pdbs", exist_ok=True)
-        filename = f"dataset_pdbs/{self.label()}.pdb"
+    def save_topology_pdb(self, filename: Optional[str] = None):
+        """Save the final topology as a PDB file."""
+        if filename is None:
+            os.makedirs("dataset_pdbs", exist_ok=True)
+            filename = f"dataset_pdbs/{self.label()}.pdb"
         utils.save_pdb(self.traj[0], filename)
 
     def __getitem__(self, idx):
