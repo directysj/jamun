@@ -15,12 +15,12 @@ def make_graph_from_topology(
     topology: md.Topology,
 ) -> torch_geometric.data.Data:
     # Encode the atom types, residue codes, and residue sequence indices.
-    atom_type_index = torch.tensor([utils.encode_atom_type(x.element.symbol) for x in top.atoms], dtype=torch.int32)
-    residue_code_index = torch.tensor([utils.encode_residue(x.residue.name) for x in top.atoms], dtype=torch.int32)
-    residue_sequence_index = torch.tensor([x.residue.index for x in top.atoms], dtype=torch.int32)
-    atom_code_index = torch.tensor([utils.encode_atom_code(x.name) for x in top.atoms], dtype=torch.int32)
+    atom_type_index = torch.tensor([utils.encode_atom_type(x.element.symbol) for x in topology.atoms], dtype=torch.int32)
+    residue_code_index = torch.tensor([utils.encode_residue(x.residue.name) for x in topology.atoms], dtype=torch.int32)
+    residue_sequence_index = torch.tensor([x.residue.index for x in topology.atoms], dtype=torch.int32)
+    atom_code_index = torch.tensor([utils.encode_atom_code(x.name) for x in topology.atoms], dtype=torch.int32)
 
-    bonds = torch.tensor([[bond[0].index, bond[1].index] for bond in top.bonds], dtype=torch.long).T
+    bonds = torch.tensor([[bond[0].index, bond[1].index] for bond in topology.bonds], dtype=torch.long).T
 
     # Create the graph.
     # Positions will be updated later.
@@ -34,8 +34,8 @@ def make_graph_from_topology(
         edge_index=bonds,
         pos=None,
     )
-    graph.residues = [x.residue.name for x in top.atoms]
-    graph.atom_names = [x.name for x in top.atoms]
+    graph.residues = [x.residue.name for x in topology.atoms]
+    graph.atom_names = [x.name for x in topology.atoms]
     return graph
 
 
