@@ -11,24 +11,9 @@ import torch_geometric
 from jamun import utils
 
 
-def preprocess_topology(
-    topology: md.Topology, keep_hydrogens: bool = False
-) -> Tuple[torch_geometric.data.Data, md.Topology, md.Topology]:
-    """Preprocess the MDtraj topology, returning a PyTorch Geometric graph, the topology with protein only, and the topology with hydrogenated protein."""
-    # Select all heavy atoms in the protein.
-    # This also removes all waters.
-    select = topology.select("protein and not type H")
-    top_no_H = topology.subset(select)
-
-    # Select all atoms in the protein.
-    select_with_H = topology.select("protein")
-    top_with_H = topology.subset(select_with_H)
-
-    if keep_hydrogens:
-        top = top_with_H
-    else:
-        top = top_no_H
-
+def make_graph_from_topology(
+    topology: md.Topology,
+) -> torch_geometric.data.Data:
     # Encode the atom types, residue codes, and residue sequence indices.
     atom_type_index = torch.tensor([utils.encode_atom_type(x.element.symbol) for x in top.atoms], dtype=torch.int32)
     residue_code_index = torch.tensor([utils.encode_residue(x.residue.name) for x in top.atoms], dtype=torch.int32)
@@ -51,7 +36,23 @@ def preprocess_topology(
     )
     graph.residues = [x.residue.name for x in top.atoms]
     graph.atom_names = [x.name for x in top.atoms]
-    return graph, top_no_H, top_with_H
+    return graph
+
+
+def preprocess_topology(
+    topology: md.Topology,
+    keep_hydrogens: bool,
+) -> Tuple[md.Topology, np.ndarray]:
+    """Preprocess the MDtraj topology, returning a PyTorch Geometric graph, the topology with protein only, and the topology with hydrogenated protein."""
+    if keep_hydrogens:
+        # Select all atoms in the protein.
+        select_with_H = topology.select("protein")
+        return topology.subset(select_with_H), select_with_H
+
+    # Select all heavy atoms in the protein.
+    # This also removes all waters.
+    select = topology.select("protein and not type H")
+    return topology.subset(select), select
 
 
 @utils.singleton
@@ -88,11 +89,19 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
         pdb_file = os.path.join(self.root, pdb_file)
         topology = md.load_topology(pdb_file)
 
-        self.graph, self.top_no_H, self.top_with_H = preprocess_topology(topology, keep_hydrogens=keep_hydrogens)
+        self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
+        self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)
+        self.graph_with_H = make_graph_from_topology(self.top_with_H)
+        self.graph_without_H = make_graph_from_topology(self.top_without_H)
+
         if keep_hydrogens:
+            self.graph = self.graph_with_H
             self.top = self.top_with_H
+            self.topology_slice = self.topology_slice_with_H
         else:
-            self.top = self.top_no_H
+            self.graph = self.graph_without_H
+            self.top = self.top_without_H
+            self.topology_slice = self.topology_slice_without_H
 
         self.graph.dataset_label = self.label()
         self.graph.loss_weight = torch.tensor([loss_weight], dtype=torch.float32)
@@ -191,14 +200,22 @@ class MDtrajDataset(torch.utils.data.Dataset):
         # Subsample the trajectory.
         self.traj = self.traj[start_frame : start_frame + num_frames : subsample]
         topology = self.traj.topology
-        self.graph, self.top_no_H, self.top_with_H = preprocess_topology(topology, keep_hydrogens=keep_hydrogens)
+
+        self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
+        self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)
+        self.graph_with_H = make_graph_from_topology(self.top_with_H)
+        self.graph_without_H = make_graph_from_topology(self.top_without_H)
+
         if keep_hydrogens:
+            self.graph = self.graph_with_H
             self.top = self.top_with_H
-            topology_slice = topology.select("protein")
+            self.topology_slice = self.topology_slice_with_H
         else:
-            self.top = self.top_no_H
-            topology_slice = topology.select("protein and not type H")
-        self.traj = self.traj.atom_slice(topology_slice)
+            self.graph = self.graph_without_H
+            self.top = self.top_without_H
+            self.topology_slice = self.topology_slice_without_H
+
+        self.traj = self.traj.atom_slice(self.topology_slice)
 
         self.graph.pos = torch.tensor(self.traj.xyz[0], dtype=torch.float32)
         self.graph.loss_weight = torch.tensor([loss_weight], dtype=torch.float32)
