@@ -7,7 +7,7 @@ import torch
 import torch_geometric
 from e3tools import radius_graph, scatter
 
-from jamun.utils import align_A_to_B_batched, mean_center, unsqueeze_trailing, to_atom_graphs
+from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing, to_atom_graphs
 
 
 def compute_normalization_factors(
@@ -289,7 +289,7 @@ class Denoiser(pl.LightningModule):
                     y = align_A_to_B_batched_f(y, x, topology.batch, topology.num_graphs)
 
         with torch.cuda.nvtx.range("xhat"):
-            xhat = self.xhat(y, sigma)
+            xhat = self.xhat(y, topology, sigma)
 
         return xhat, y
 
@@ -322,7 +322,7 @@ class Denoiser(pl.LightningModule):
 
         # Account for the loss weight across graphs and noise levels.
         with torch.cuda.nvtx.range("loss_weight"):
-            loss = mse * x.loss_weight
+            loss = mse * topology.loss_weight
             _, _, c_out, _ = compute_normalization_factors(
                 sigma,
                 average_squared_distance=self.average_squared_distance,
@@ -348,7 +348,7 @@ class Denoiser(pl.LightningModule):
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
         xhat, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, sigma)
+        return self.compute_loss(x, xhat, topology, sigma)
 
     def training_step(self, batch: torch_geometric.data.Batch, batch_idx: int):
         """Called during training."""
