@@ -44,17 +44,18 @@ class VisualizeDenoise(pl.Callback):
         if (pl_module.current_epoch % self.every_n_epochs) != 0:
             return
 
+        x, topology = batch.pos, batch
         for sigma in self.sigma_list:
             xhat, y = pl_module.noise_and_denoise(
-                batch.pos, batch, sigma, align_noisy_input=pl_module.align_noisy_input_during_evaluation
+                x, topology, sigma, align_noisy_input=pl_module.align_noisy_input_during_evaluation
             )
-            xhat_graphs = batch.clone()
+            xhat_graphs = topology.clone()
             xhat_graphs.pos = xhat
 
-            x_graphs = batch.clone()
-            x_graphs.pos = batch.pos
+            x_graphs = topology.clone()
+            x_graphs.pos = x
 
-            y_graphs = batch.clone()
+            y_graphs = topology.clone()
             y_graphs.pos = y
 
             for xhat_graph, y_graph, x_graph in zip(
