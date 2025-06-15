@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, Optional, Tuple, Union
+from collections.abc import Callable
 
 import lightning.pytorch as pl
 import numpy as np
@@ -7,18 +7,18 @@ import torch
 import torch_geometric
 from e3tools import radius_graph, scatter
 
-from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing, to_atom_graphs
+from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
 
 
 def compute_normalization_factors(
-    sigma: Union[float, torch.Tensor],
+    sigma: float | torch.Tensor,
     *,
     average_squared_distance: float,
-    normalization_type: Optional[str],
-    sigma_data: Optional[float] = None,
+    normalization_type: str | None,
+    sigma_data: float | None = None,
     D: int = 3,
-    device: Optional[torch.device] = None,
-) -> Tuple[float, float, float, float]:
+    device: torch.device | None = None,
+) -> tuple[float, float, float, float]:
     """Compute the normalization factors for the input, skip connection, output, and noise."""
     sigma = torch.as_tensor(sigma, device=device)
 
@@ -62,11 +62,11 @@ class Denoiser(pl.LightningModule):
         mean_center: bool,
         mirror_augmentation_rate: float,
         bond_loss_coefficient: float = 1.0,
-        normalization_type: Optional[str] = "JAMUN",
-        sigma_data: Optional[float] = None,  # Only used if normalization_type is "EDM"
-        lr_scheduler_config: Optional[Dict] = None,
+        normalization_type: str | None = "JAMUN",
+        sigma_data: float | None = None,  # Only used if normalization_type is "EDM"
+        lr_scheduler_config: dict | None = None,
         use_torch_compile: bool = True,
-        torch_compile_kwargs: Optional[Dict] = None,
+        torch_compile_kwargs: dict | None = None,
         pass_topology_as_atom_graphs: bool = False,
     ):
         super().__init__()
@@ -147,10 +147,10 @@ class Denoiser(pl.LightningModule):
             torch.manual_seed(0)
             if len(x.shape) == 2:
                 num_nodes_per_graph = x.shape[0] // num_graphs
-                noise = torch.randn_like((x[:num_nodes_per_graph])).repeat(num_graphs, 1)
+                noise = torch.randn_like(x[:num_nodes_per_graph]).repeat(num_graphs, 1)
             if len(x.shape) == 3:
                 num_nodes_per_graph = x.shape[1]
-                noise = torch.randn_like((x[0])).repeat(num_graphs, 1, 1)
+                noise = torch.randn_like(x[0]).repeat(num_graphs, 1, 1)
         else:
             noise = torch.randn_like(x)
 
@@ -165,7 +165,7 @@ class Denoiser(pl.LightningModule):
         sigma = torch.as_tensor(sigma).to(y)
         return (self.xhat(y, topology, sigma) - y) / (unsqueeze_trailing(sigma, y.ndim - 1) ** 2)
 
-    def effective_radial_cutoff(self, sigma: Union[float, torch.Tensor]) -> torch.Tensor:
+    def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
@@ -203,7 +203,7 @@ class Denoiser(pl.LightningModule):
         return topology
 
     def xhat_normalized(
-        self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: Union[float, torch.Tensor]
+        self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
         """Compute the denoised prediction using the normalization factors from JAMUN."""
         sigma = torch.as_tensor(sigma).to(y)
@@ -244,7 +244,7 @@ class Denoiser(pl.LightningModule):
         return c_skip * y + c_out * g_pred
 
     def xhat(
-        self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: Union[float, torch.Tensor]
+        self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
         """Compute the denoised prediction."""
         if self.mean_center:
@@ -265,9 +265,9 @@ class Denoiser(pl.LightningModule):
         self,
         x: torch.Tensor,
         topology: torch_geometric.data.Batch,
-        sigma: Union[float, torch.Tensor],
+        sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
@@ -298,8 +298,8 @@ class Denoiser(pl.LightningModule):
         x: torch.Tensor,
         xhat: torch.Tensor,
         topology: torch_geometric.data.Batch,
-        sigma: Union[float, torch.Tensor],
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        sigma: float | torch.Tensor,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute the loss."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_x"):
@@ -343,9 +343,9 @@ class Denoiser(pl.LightningModule):
         self,
         x: torch.Tensor,
         topology: torch_geometric.data.Batch,
-        sigma: Union[float, torch.Tensor],
+        sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
         xhat, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
         return self.compute_loss(x, xhat, topology, sigma)

@@ -1,6 +1,6 @@
-from typing import Callable, Tuple
 import functools
 import logging
+from collections.abc import Callable
 
 import lightning.pytorch as pl
 import numpy as np
@@ -17,13 +17,13 @@ def energy_direct(y: torch.Tensor, g_y: torch.Tensor, sigma: torch.Tensor) -> to
 
 
 def model_predictions_f(y: torch.Tensor, g: Callable, sigma: torch.Tensor) -> torch.Tensor:
-    """Returns the model predictions: xhat, energy, and forces."""
+    """Returns the model predictions: xhat, energy, and score."""
     # NOTE g must be torch.Tensor to torch.Tensor
     g_y, vjp_func = torch.func.vjp(g, y)
     xhat = g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
     energy = energy_direct(y, g_y, sigma)
-    forces = xhat - y / (sigma**2)
-    return xhat, energy, forces
+    score = (xhat - y) / (sigma**2)
+    return xhat, energy, score
 
 
 def norm_wrapper(
@@ -124,10 +124,10 @@ class EnergyModel(pl.LightningModule):
             torch.manual_seed(0)
             if len(x.shape) == 2:
                 num_nodes_per_graph = x.shape[0] // num_graphs
-                noise = torch.randn_like((x[:num_nodes_per_graph])).repeat(num_graphs, 1)
+                noise = torch.randn_like(x[:num_nodes_per_graph]).repeat(num_graphs, 1)
             if len(x.shape) == 3:
                 num_nodes_per_graph = x.shape[1]
-                noise = torch.randn_like((x[0])).repeat(num_graphs, 1, 1)
+                noise = torch.randn_like(x[0]).repeat(num_graphs, 1, 1)
         else:
             noise = torch.randn_like(x)
 
@@ -140,7 +140,8 @@ class EnergyModel(pl.LightningModule):
         """Compute the score function."""
         y, topology = batch.pos, batch
         sigma = torch.as_tensor(sigma).to(y)
-        return (self.xhat(y, topology, sigma) - y) / (unsqueeze_trailing(sigma, y.ndim - 1) ** 2)
+        _, _, score = self.get_model_predictions(y, topology, sigma)
+        return score
 
     def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
@@ -179,12 +180,12 @@ class EnergyModel(pl.LightningModule):
         topology.bond_mask = bond_mask
         return topology
 
-    def energy_and_forces(
+    def energy_and_score(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
-        """Compute the energy and forces for the given positions."""
-        _, energy, forces = self.get_model_predictions(pos, topology, sigma)
-        return energy, forces
+        """Compute the energy and score for the given positions."""
+        _, energy, score = self.get_model_predictions(pos, topology, sigma)
+        return energy, score
 
     def get_model_predictions(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
@@ -225,9 +226,9 @@ class EnergyModel(pl.LightningModule):
             model_predictions_fn = torch.compile(
                 model_predictions_f, disable=not self.use_torch_compile, **self.torch_compile_kwargs
             )
-            xhat, energy, forces = model_predictions_fn(pos, h, sigma)
+            xhat, energy, score = model_predictions_fn(pos, h, sigma)
 
-        return xhat, energy, forces
+        return xhat, energy, score
 
     def xhat(self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the denoised prediction."""
@@ -247,7 +248,7 @@ class EnergyModel(pl.LightningModule):
         topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
@@ -279,7 +280,7 @@ class EnergyModel(pl.LightningModule):
         xhat: torch.Tensor,
         topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute the loss."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_x"):
@@ -326,7 +327,7 @@ class EnergyModel(pl.LightningModule):
         topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
         xhat, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
         return self.compute_loss(x, xhat, topology, sigma)
