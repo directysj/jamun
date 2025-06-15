@@ -183,6 +183,11 @@ class EnergyModel(pl.LightningModule):
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
         """Compute the energy of the input."""
+        if self.mean_center:
+            y = mean_center_f(y, topology.batch, topology.num_graphs)
+
+        _, energy, _ = self.get_model_predictions(pos, topology, sigma)
+        return energy
 
     def get_model_predictions(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
