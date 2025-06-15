@@ -179,20 +179,21 @@ class EnergyModel(pl.LightningModule):
         topology.bond_mask = bond_mask
         return topology
 
-    def energy(
+    def energy_and_forces(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
-        """Compute the energy of the input."""
-        if self.mean_center:
-            y = mean_center_f(y, topology.batch, topology.num_graphs)
-
-        _, energy, _ = self.get_model_predictions(pos, topology, sigma)
-        return energy
+        """Compute the energy and forces for the given positions."""
+        _, energy, forces = self.get_model_predictions(pos, topology, sigma)
+        return energy, forces
 
     def get_model_predictions(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> torch.Tensor:
         """Compute the denoised prediction using the normalization factors from JAMUN."""
+        if self.mean_center:
+            with torch.cuda.nvtx.range("mean_center_y"):
+                pos = mean_center_f(pos, topology.batch, topology.num_graphs)
+
         sigma = torch.as_tensor(sigma).to(pos)
 
         # Compute the normalization factors.
@@ -230,10 +231,6 @@ class EnergyModel(pl.LightningModule):
 
     def xhat(self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the denoised prediction."""
-        if self.mean_center:
-            with torch.cuda.nvtx.range("mean_center_y"):
-                y = mean_center_f(y, topology.batch, topology.num_graphs)
-
         with torch.cuda.nvtx.range("get_model_predictions"):
             xhat, _, _ = self.get_model_predictions(y, topology, sigma)
 
