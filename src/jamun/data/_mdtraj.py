@@ -1,6 +1,6 @@
 import functools
 import os
-from typing import Callable, Optional, Sequence, Tuple
+from collections.abc import Callable, Sequence
 
 import mdtraj as md
 import numpy as np
@@ -44,7 +44,7 @@ def make_graph_from_topology(
 def preprocess_topology(
     topology: md.Topology,
     keep_hydrogens: bool,
-) -> Tuple[md.Topology, np.ndarray]:
+) -> tuple[md.Topology, np.ndarray]:
     """Preprocess the MDtraj topology, returning a PyTorch Geometric graph, the topology with protein only, and the topology with hydrogenated protein."""
     if keep_hydrogens:
         # Select all atoms in the protein.
@@ -67,8 +67,8 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
         traj_files: Sequence[str],
         pdb_file: str,
         label: str,
-        transform: Optional[Callable] = None,
-        subsample: Optional[int] = None,
+        transform: Callable | None = None,
+        subsample: int | None = None,
         loss_weight: float = 1.0,
         chunk_size: int = 100,
         start_at_random_frame: bool = False,
@@ -118,7 +118,7 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
     def label(self):
         return self._label
 
-    def save_topology_pdb(self, filename: Optional[str] = None):
+    def save_topology_pdb(self, filename: str | None = None):
         """Save the final topology as a PDB file."""
         if filename is None:
             os.makedirs("dataset_pdbs", exist_ok=True)
@@ -159,10 +159,10 @@ class MDtrajDataset(torch.utils.data.Dataset):
         traj_files: Sequence[str],
         pdb_file: str,
         label: str,
-        num_frames: Optional[int] = None,
-        start_frame: Optional[int] = None,
-        transform: Optional[Callable] = None,
-        subsample: Optional[int] = None,
+        num_frames: int | None = None,
+        start_frame: int | None = None,
+        transform: Callable | None = None,
+        subsample: int | None = None,
         loss_weight: float = 1.0,
         verbose: bool = False,
         keep_hydrogens: bool = False,
@@ -234,7 +234,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
     def label(self):
         return self._label
 
-    def save_topology_pdb(self, filename: Optional[str] = None):
+    def save_topology_pdb(self, filename: str | None = None):
         """Save the final topology as a PDB file."""
         if filename is None:
             os.makedirs("dataset_pdbs", exist_ok=True)

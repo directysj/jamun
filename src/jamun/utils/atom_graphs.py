@@ -1,4 +1,4 @@
-from typing import Dict
+"""Converts a PyTorch Geometric Batch object to an AtomGraphs object for the Orb models."""
 
 import torch
 import torch_geometric.data
@@ -33,7 +33,7 @@ def to_atom_graphs(
     n_node = ptr[1:] - ptr[:-1]
     n_edge = torch.bincount(edge_graph_idx, minlength=num_graphs)
 
-    node_features: Dict[str, torch.Tensor] = {}
+    node_features: dict[str, torch.Tensor] = {}
     node_features["positions"] = topology.pos
 
     if topology.get("atom_type_index", None) is not None:
@@ -50,12 +50,12 @@ def to_atom_graphs(
     if topology.get("residue_index", None) is not None:
         node_features["residue_index"] = topology.residue_index
 
-    edge_features: Dict[str, torch.Tensor] = {}
+    edge_features: dict[str, torch.Tensor] = {}
     edge_features["vectors"] = topology.pos[senders] - topology.pos[receivers]
     if topology.get("edge_attr", None) is not None:
         edge_features["edge_attr"] = topology.edge_attr
 
-    system_features: Dict[str, torch.Tensor] = {}
+    system_features: dict[str, torch.Tensor] = {}
     if topology.get("num_residues", None) is not None:
         system_features["num_residues"] = topology.num_residues
 
