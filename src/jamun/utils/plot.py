@@ -1,5 +1,4 @@
 import tempfile
-from typing import Dict, Optional
 
 import mdtraj as md
 import py3Dmol
@@ -9,7 +8,7 @@ from jamun import utils
 
 
 def animate_trajectory_with_py3Dmol(
-    traj: md.Trajectory, alignment_frame: Optional[md.Trajectory] = None
+    traj: md.Trajectory, alignment_frame: md.Trajectory | None = None
 ) -> py3Dmol.view:
     """Create an animation of this trajectory using py3Dmol."""
     if alignment_frame:
@@ -40,7 +39,7 @@ def animate_trajectory_with_py3Dmol(
 
 
 def plot_molecules_with_py3Dmol(
-    molecules: Dict[str, Chem.Mol],
+    molecules: dict[str, Chem.Mol],
     show_atom_types: bool = False,
     show_keys: bool = True,
 ) -> py3Dmol.view:

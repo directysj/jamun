@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from typing import Sequence
+from collections.abc import Sequence
 
 import dotenv
 import e3nn

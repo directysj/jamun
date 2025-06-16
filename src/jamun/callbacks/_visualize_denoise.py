@@ -1,4 +1,4 @@
-from typing import List, Sequence, Union
+from collections.abc import Sequence
 
 import lightning.pytorch as pl
 import torch_geometric.data
@@ -13,8 +13,8 @@ class VisualizeDenoise(pl.Callback):
 
     def __init__(
         self,
-        datasets: Sequence[Union[MDtrajDataset, MDtrajSDFDataset]],
-        sigma_list: List[float],
+        datasets: Sequence[MDtrajDataset | MDtrajSDFDataset],
+        sigma_list: list[float],
         every_n_epochs: int = 1,
     ):
         super().__init__()
