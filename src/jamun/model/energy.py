@@ -136,13 +136,6 @@ class EnergyModel(pl.LightningModule):
             y = -y
         return y
 
-    def score(self, batch: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
-        """Compute the score function."""
-        y, topology = batch.pos, batch
-        sigma = torch.as_tensor(sigma).to(y)
-        _, _, score = self.get_model_predictions(y, topology, sigma)
-        return score
-
     def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
@@ -180,17 +173,16 @@ class EnergyModel(pl.LightningModule):
         topology.bond_mask = bond_mask
         return topology
 
-    def energy_and_score(
-        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
-    ) -> torch.Tensor:
-        """Compute the energy and score for the given positions."""
-        _, energy, score = self.get_model_predictions(pos, topology, sigma)
-        return energy, score
 
     def get_model_predictions(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
-    ) -> torch.Tensor:
-        """Compute the denoised prediction using the normalization factors from JAMUN."""
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Compute the denoised prediction, energy, and score."""
+        if topology.get("batch", None) is None:
+            topology = topology.clone()
+            topology.batch = torch.zeros(pos.shape[0], dtype=torch.int64, device=pos.device)
+            topology.num_graphs = 1
+
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_y"):
                 pos = mean_center_f(pos, topology.batch, topology.num_graphs)
@@ -241,6 +233,20 @@ class EnergyModel(pl.LightningModule):
                 xhat = mean_center_f(xhat, topology.batch, topology.num_graphs)
 
         return xhat
+
+    def score(self, batch: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
+        """Compute the score function."""
+        y, topology = batch.pos, batch
+        sigma = torch.as_tensor(sigma).to(y)
+        _, _, score = self.get_model_predictions(y, topology, sigma)
+        return score
+
+    def energy_and_score(
+        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the energy and score for the given positions."""
+        _, energy, score = self.get_model_predictions(pos, topology, sigma)
+        return energy, score
 
     def noise_and_denoise(
         self,
