@@ -1,5 +1,3 @@
-
-
 class ResidueMetadata:
     """Metadata for residues and atoms."""
 

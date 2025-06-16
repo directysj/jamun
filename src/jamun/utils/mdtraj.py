@@ -1,4 +1,3 @@
-
 import einops
 import mdtraj as md
 import numpy as np

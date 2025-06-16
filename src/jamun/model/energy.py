@@ -173,7 +173,6 @@ class EnergyModel(pl.LightningModule):
         topology.bond_mask = bond_mask
         return topology
 
-
     def get_model_predictions(
         self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

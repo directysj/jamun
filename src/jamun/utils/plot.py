@@ -7,9 +7,7 @@ from rdkit import Chem
 from jamun import utils
 
 
-def animate_trajectory_with_py3Dmol(
-    traj: md.Trajectory, alignment_frame: md.Trajectory | None = None
-) -> py3Dmol.view:
+def animate_trajectory_with_py3Dmol(traj: md.Trajectory, alignment_frame: md.Trajectory | None = None) -> py3Dmol.view:
     """Create an animation of this trajectory using py3Dmol."""
     if alignment_frame:
         traj = traj.superpose(alignment_frame)
