@@ -1,8 +1,7 @@
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 import torch_geometric.data
-
 from orb_models.forcefield.base import AtomGraphs
 
 

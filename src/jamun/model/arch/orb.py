@@ -1,10 +1,8 @@
 import torch
-import torch_geometric.data
-
-from orb_models.forcefield.gns import MoleculeGNS
-from orb_models.forcefield.rbf import BesselBasis
 from orb_models.forcefield.angular import SphericalHarmonics
 from orb_models.forcefield.base import AtomGraphs
+from orb_models.forcefield.gns import MoleculeGNS
+from orb_models.forcefield.rbf import BesselBasis
 
 
 class MoleculeGNSWrapper(torch.nn.Module):

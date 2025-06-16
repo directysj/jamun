@@ -1,5 +1,4 @@
 import functools
-from typing import Callable
 
 import e3nn.util.test
 import e3tools.nn
@@ -8,14 +7,12 @@ import torch
 import torch_geometric
 import torch_geometric.data
 from e3tools import radius_graph
-from torch import Tensor
 
 import jamun
 import jamun.data
 import jamun.model
 import jamun.model.arch
 from jamun.model.energy import model_predictions_f
-
 from jamun.utils import ResidueMetadata
 
 N_ATOM_TYPES = len(ResidueMetadata.ATOM_TYPES)
@@ -168,8 +165,8 @@ def test_e3conv_energy_parameterization(model, device):
     sigma = 0.5
     g = functools.partial(model, topology=topology, c_noise=c_noise, effective_radial_cutoff=effective_radial_cutoff)
 
-    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]
-    energy_f = lambda y: model_predictions_f(y, g, sigma)[1]
+    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]  # noqa: E731
+    energy_f = lambda y: model_predictions_f(y, g, sigma)[1]  # noqa: E731
     s0 = -torch.func.jacrev(energy_f)(pos)
     s1 = (xhat_f(pos) - pos) / (sigma**2)
 
@@ -257,7 +254,7 @@ def test_e3conv_energy_parameterization_double_backprop_compile(model, device):
     sigma = 0.5
     y = x + torch.randn_like(x) * sigma
 
-    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]
+    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]  # noqa: E731
     xhat = torch.compile(xhat_f, fullgraph=True)(y)
 
     loss = (x - xhat).pow(2).sum()

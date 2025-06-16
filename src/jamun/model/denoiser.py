@@ -243,9 +243,7 @@ class Denoiser(pl.LightningModule):
 
         return c_skip * y + c_out * g_pred
 
-    def xhat(
-        self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
-    ) -> torch.Tensor:
+    def xhat(self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the denoised prediction."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_y"):
