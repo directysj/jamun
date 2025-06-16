@@ -14,6 +14,8 @@ import jamun
 import jamun.data
 import jamun.model
 import jamun.model.arch
+from jamun.model.energy import model_predictions_f
+
 from jamun.utils import ResidueMetadata
 
 N_ATOM_TYPES = len(ResidueMetadata.ATOM_TYPES)
@@ -163,19 +165,13 @@ def test_e3conv_energy_parameterization(model, device):
         edge_index=edge_index, bond_mask=bond_mask, atom_type_index=atom_type_index, atom_code_index=atom_code_index
     )
 
-    def energy_f(y: Tensor, g: Callable, sigma) -> Tensor:
-        return (g(y) - y).pow(2).sum() / (2 * (sigma**2))
-
-    def xhat_f(y: Tensor, g: Callable) -> Tensor:
-        # NOTE g must be Tensor to Tensor
-        g_y, vjp_func = torch.func.vjp(g, y)
-        return g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
-
     sigma = 0.5
     g = functools.partial(model, topology=topology, c_noise=c_noise, effective_radial_cutoff=effective_radial_cutoff)
 
-    s0 = -torch.func.jacrev(energy_f)(pos, g, sigma)
-    s1 = (xhat_f(pos, g) - pos) / (sigma**2)
+    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]
+    energy_f = lambda y: model_predictions_f(y, g, sigma)[1]
+    s0 = -torch.func.jacrev(energy_f)(pos)
+    s1 = (xhat_f(pos) - pos) / (sigma**2)
 
     print(f"{(s0 - s1).abs().max()=}")
 
@@ -185,7 +181,7 @@ def test_e3conv_energy_parameterization(model, device):
 @pytest.mark.parametrize(
     "device",
     [
-        pytest.param(torch.device("cpu"), id="cpu", marks=pytest.mark.xfail),
+        pytest.param(torch.device("cpu"), id="cpu", marks=pytest.mark.xpass),
         pytest.param(torch.device("cuda:0"), id="cuda"),
     ],
 )
@@ -212,21 +208,14 @@ def test_e3conv_energy_parameterization_compile(model, device):
         edge_index=edge_index, bond_mask=bond_mask, atom_type_index=atom_type_index, atom_code_index=atom_code_index
     ).to(device)
 
-    def energy_f(y: Tensor, g: Callable, sigma) -> Tensor:
-        return (g(y) - y).pow(2).sum() / (2 * (sigma**2))
-
-    def xhat_f(y: Tensor, g: Callable) -> Tensor:
-        # NOTE g must be Tensor to Tensor
-        g_y, vjp_func = torch.func.vjp(g, y)
-        return g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
-
     g = functools.partial(model, topology=topology, c_noise=c_noise, effective_radial_cutoff=effective_radial_cutoff)
 
-    xhat_ref = xhat_f(pos, g)
+    sigma = 0.5
+    xhat_ref = model_predictions_f(pos, g, sigma)[0]
 
     assert not torch.equal(xhat_ref, torch.zeros_like(xhat_ref))
 
-    xhat = torch.compile(xhat_f, fullgraph=True)(pos, g)
+    xhat = torch.compile(model_predictions_f, fullgraph=True)(pos, g, sigma)[0]
 
     print(f"{(xhat - xhat_ref).abs().max()=}")
 
@@ -236,7 +225,7 @@ def test_e3conv_energy_parameterization_compile(model, device):
 @pytest.mark.parametrize(
     "device",
     [
-        pytest.param(torch.device("cpu"), id="cpu", marks=pytest.mark.xfail),
+        pytest.param(torch.device("cpu"), id="cpu", marks=pytest.mark.xpass),
         pytest.param(torch.device("cuda:0"), id="cuda"),
     ],
 )
@@ -263,19 +252,13 @@ def test_e3conv_energy_parameterization_double_backprop_compile(model, device):
         edge_index=edge_index, bond_mask=bond_mask, atom_type_index=atom_type_index, atom_code_index=atom_code_index
     ).to(device)
 
-    def energy_f(y: Tensor, g: Callable, sigma) -> Tensor:
-        return (g(y) - y).pow(2).sum() / (2 * (sigma**2))
-
-    def xhat_f(y: Tensor, g: Callable) -> Tensor:
-        # NOTE g must be Tensor to Tensor
-        g_y, vjp_func = torch.func.vjp(g, y)
-        return g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
-
     g = functools.partial(model, topology=topology, c_noise=c_noise, effective_radial_cutoff=effective_radial_cutoff)
 
-    y = x + torch.randn_like(x)
+    sigma = 0.5
+    y = x + torch.randn_like(x) * sigma
 
-    xhat = xhat_f(y, g)
+    xhat_f = lambda y: model_predictions_f(y, g, sigma)[0]
+    xhat = torch.compile(xhat_f, fullgraph=True)(y)
 
     loss = (x - xhat).pow(2).sum()
     loss.backward()
@@ -286,7 +269,7 @@ def test_e3conv_energy_parameterization_double_backprop_compile(model, device):
     for p in model.parameters():
         p.grad = None
 
-    xhat = torch.compile(xhat_f, fullgraph=True)(y, g)
+    xhat = torch.compile(xhat_f, fullgraph=True)(y)
     loss = (x - xhat).pow(2).sum()
     loss.backward()
 
