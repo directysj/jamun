@@ -1,5 +1,4 @@
 import functools
-from typing import Callable
 
 import e3nn.util.test
 import e3tools.nn
@@ -8,14 +7,12 @@ import torch
 import torch_geometric
 import torch_geometric.data
 from e3tools import radius_graph
-from torch import Tensor
 
 import jamun
 import jamun.data
 import jamun.model
 import jamun.model.arch
 from jamun.model.energy import model_predictions_f
-
 from jamun.utils import ResidueMetadata
 
 N_ATOM_TYPES = len(ResidueMetadata.ATOM_TYPES)
