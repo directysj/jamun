@@ -1,4 +1,3 @@
-
 import torch
 import torch_geometric
 from e3tools import scatter
