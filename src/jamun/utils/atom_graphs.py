@@ -1,3 +1,4 @@
+"""Converts a PyTorch Geometric Batch object to an AtomGraphs object for the Orb models."""
 
 import torch
 import torch_geometric.data
