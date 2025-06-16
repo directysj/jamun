@@ -15,7 +15,9 @@ def make_graph_from_topology(
     topology: md.Topology,
 ) -> torch_geometric.data.Data:
     # Encode the atom types, residue codes, and residue sequence indices.
-    atom_type_index = torch.tensor([utils.encode_atom_type(x.element.symbol) for x in topology.atoms], dtype=torch.int32)
+    atom_type_index = torch.tensor(
+        [utils.encode_atom_type(x.element.symbol) for x in topology.atoms], dtype=torch.int32
+    )
     residue_code_index = torch.tensor([utils.encode_residue(x.residue.name) for x in topology.atoms], dtype=torch.int32)
     residue_sequence_index = torch.tensor([x.residue.index for x in topology.atoms], dtype=torch.int32)
     atom_code_index = torch.tensor([utils.encode_atom_code(x.name) for x in topology.atoms], dtype=torch.int32)
