@@ -37,6 +37,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "universal-pathlib>=0.2.6",
     "wandb>=0.19.1",
+    "orb_models>=0.5.4",
 ]
 
 [project.scripts]

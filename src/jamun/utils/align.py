@@ -212,8 +212,7 @@ def align_A_to_B_batched(A: torch_geometric.data.Batch, B: torch_geometric.data.
     A.pos = kabsch_algorithm(A.pos, B.pos, A.batch, A.num_graphs, sigma=sigma, correction_order=correction_order)
     return A
 
-    # num_batches = A.batch.max().item() + 1
-    # for i in range(num_batches):
-    #     mask = A.batch == i
-    #     A.pos[mask] = align_A_to_B(A.pos[mask], B.pos[mask])
-    # return A
+
+def align_A_to_B_batched_f(A: torch.Tensor, B: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: Optional[float] = None, correction_order: int = 0) -> torch.Tensor:
+    """Aligns each graph of A to corresponding graph in B."""
+    return kabsch_algorithm(A, B, batch, num_graphs, sigma=sigma, correction_order=correction_order)

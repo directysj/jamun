@@ -102,7 +102,7 @@ class E3Conv(torch.nn.Module):
         topology: torch_geometric.data.Batch,
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
-    ) -> torch_geometric.data.Batch:
+    ) -> torch.Tensor:
         # Extract edge attributes.
         edge_index = topology["edge_index"]
         bond_mask = topology["bond_mask"]

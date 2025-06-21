@@ -1,6 +1,6 @@
-from typing import Callable, Tuple
 import functools
 import logging
+from collections.abc import Callable
 
 import lightning.pytorch as pl
 import numpy as np
@@ -8,33 +8,27 @@ import torch
 import torch_geometric
 from e3tools import radius_graph, scatter
 
-from jamun.utils import align_A_to_B_batched, mean_center, unsqueeze_trailing
+from jamun.model.denoiser import compute_normalization_factors
+from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing
 
 
-def energy_f(y: torch.Tensor, g: Callable[[torch.Tensor], torch.Tensor], sigma: torch.Tensor) -> torch.Tensor:
-    """Compute the energy function."""
-    return (g(y) - y).pow(2).sum() / (2 * (sigma**2))
+def energy_direct(y: torch.Tensor, g_y: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+    return (g_y - y).pow(2).sum() / (2 * (sigma**2))
 
 
-def xhat_f(y: torch.Tensor, g: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-    """Compute the denoiser."""
+def model_predictions_f(y: torch.Tensor, g: Callable, sigma: torch.Tensor) -> torch.Tensor:
+    """Returns the model predictions: xhat, energy, and score."""
+    # NOTE g must be torch.Tensor to torch.Tensor
     g_y, vjp_func = torch.func.vjp(g, y)
-    return g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
+    xhat = g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
+    energy = energy_direct(y, g_y, sigma)
+    score = (xhat - y) / (sigma**2)
+    return xhat, energy, score
 
 
-def jamun_normalization_factors(sigma: float, average_squared_distance: float, D: int = 3, device=None):
-    A = torch.as_tensor(average_squared_distance, device=device)
-    B = torch.as_tensor(2 * D * sigma**2, device=device)
-    sigma = torch.as_tensor(sigma, device=device)
-
-    c_in = 1.0 / torch.sqrt(A + B)
-    c_skip = A / (A + B)
-    c_out = torch.sqrt((A * B) / (A + B))
-    c_noise = torch.log(sigma) / 4
-    return c_in, c_skip, c_out, c_noise
-
-
-def norm_wrapper(y: torch.Tensor, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor) -> torch.Tensor:
+def norm_wrapper(
+    y: torch.Tensor, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor
+) -> torch.Tensor:
     return c_skip * y + c_out * g(c_in * y)
 
 
@@ -54,10 +48,12 @@ class EnergyModel(pl.LightningModule):
         align_noisy_input_during_evaluation: bool,
         mean_center: bool,
         mirror_augmentation_rate: float,
-        bond_loss_coefficient: float = 1.0,
+        normalization_type: str | None = "JAMUN",
+        sigma_data: float | None = None,
         lr_scheduler_config: dict | None = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: dict | None = None,
+        alignment_correction_order: int = 0,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -104,184 +100,222 @@ class EnergyModel(pl.LightningModule):
         else:
             py_logger.info("Not mean centering input and output.")
 
+        self.normalization_type = normalization_type
+        if self.normalization_type is not None:
+            py_logger.info(f"Normalization type: {self.normalization_type}")
+        else:
+            py_logger.info("No normalization")
+
+        self.sigma_data = sigma_data
+        if self.normalization_type == "EDM" and self.sigma_data is None:
+            raise ValueError("sigma_data must be provided when normalization_type is 'EDM'")
+        elif self.normalization_type != "EDM" and self.sigma_data is not None:
+            raise ValueError("sigma_data can only be used when normalization_type is 'EDM'")
+
         self.mirror_augmentation_rate = mirror_augmentation_rate
         py_logger.info(f"Mirror augmentation rate: {self.mirror_augmentation_rate}")
 
-        self.bond_loss_coefficient = bond_loss_coefficient
+        self.alignment_correction_order = alignment_correction_order
 
-    def add_noise(self, x: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
+    def add_noise(self, x: torch.Tensor, sigma: float | torch.Tensor, num_graphs: int) -> torch.Tensor:
         # pos [B, ...]
-        sigma = unsqueeze_trailing(sigma, x.pos.ndim)
+        sigma = unsqueeze_trailing(sigma, x.ndim)
 
-        y = x.clone("pos")
         if self.add_fixed_ones:
-            noise = torch.ones_like(x.pos)
+            noise = torch.ones_like(x)
         elif self.add_fixed_noise:
             torch.manual_seed(0)
-            num_batches = x.batch.max().item() + 1
-            if len(x.pos.shape) == 2:
-                num_nodes_per_batch = x.pos.shape[0] // num_batches
-                noise = torch.randn_like((x.pos[:num_nodes_per_batch])).repeat(num_batches, 1)
-            if len(x.pos.shape) == 3:
-                num_nodes_per_batch = x.pos.shape[1]
-                noise = torch.randn_like((x.pos[0])).repeat(num_batches, 1, 1)
+            if len(x.shape) == 2:
+                num_nodes_per_graph = x.shape[0] // num_graphs
+                noise = torch.randn_like(x[:num_nodes_per_graph]).repeat(num_graphs, 1)
+            if len(x.shape) == 3:
+                num_nodes_per_graph = x.shape[1]
+                noise = torch.randn_like(x[0]).repeat(num_graphs, 1, 1)
         else:
-            noise = torch.randn_like(x.pos)
+            noise = torch.randn_like(x)
 
-        y.pos = x.pos + sigma * noise
+        y = x + sigma * noise
         if torch.rand(()) < self.mirror_augmentation_rate:
-            y.pos = -y.pos
+            y = -y
         return y
 
-    def score(self, y: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
+    def score(self, batch: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the score function."""
-        sigma = torch.as_tensor(sigma).to(y.pos)
-        return (self.xhat(y, sigma).pos - y.pos) / (unsqueeze_trailing(sigma, y.pos.ndim - 1) ** 2)
+        y, topology = batch.pos, batch
+        sigma = torch.as_tensor(sigma).to(y)
+        _, _, score = self.get_model_predictions(y, topology, sigma)
+        return score
 
     def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
-    def add_edges(self, y: torch_geometric.data.Batch, radial_cutoff: float) -> torch_geometric.data.Batch:
+    def add_edges(
+        self, y: torch.Tensor, topology: torch_geometric.data.Batch, radial_cutoff: float
+    ) -> torch_geometric.data.Batch:
         """Add edges to the graph based on the effective radial cutoff."""
-        if "batch" in y:
-            batch = y["batch"]
-        else:
-            batch = torch.zeros(y.num_nodes, dtype=torch.long, device=self.device)
+        topology = topology.clone()
+        if topology.get("edge_index") is not None:
+            return topology
 
-        # Our dataloader already adds the bonded edges.
-        bonded_edge_index = y.edge_index
+        if "batch" in topology:
+            batch = topology["batch"]
+        else:
+            batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=self.device)
 
         with torch.cuda.nvtx.range("radial_graph"):
-            radial_edge_index = radius_graph(y.pos, radial_cutoff, batch)
+            radial_edge_index = radius_graph(y, radial_cutoff, batch)
 
         with torch.cuda.nvtx.range("concatenate_edges"):
-            edge_index = torch.cat((radial_edge_index, bonded_edge_index), dim=-1)
-            if bonded_edge_index.numel() == 0:
+            edge_index = torch.cat((radial_edge_index, topology.bonded_edge_index), dim=-1)
+            if topology.bonded_edge_index.numel() == 0:
                 bond_mask = torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device)
             else:
                 bond_mask = torch.cat(
                     (
                         torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device),
-                        torch.ones(bonded_edge_index.shape[1], dtype=torch.long, device=self.device),
+                        torch.ones(topology.bonded_edge_index.shape[1], dtype=torch.long, device=self.device),
                     ),
                     dim=0,
                 )
 
-        y.edge_index = edge_index
-        y.bond_mask = bond_mask
-        return y
+        topology.edge_index = edge_index
+        topology.bond_mask = bond_mask
+        return topology
 
-    def xhat_normalized(self, y: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch_geometric.data.Batch:
+    def energy_and_score(
+        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the energy and score for the given positions."""
+        _, energy, score = self.get_model_predictions(pos, topology, sigma)
+        return energy, score
+
+    def get_model_predictions(
+        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor
+    ) -> torch.Tensor:
         """Compute the denoised prediction using the normalization factors from JAMUN."""
-        sigma = torch.as_tensor(sigma).to(y.pos)
+        if self.mean_center:
+            with torch.cuda.nvtx.range("mean_center_y"):
+                pos = mean_center_f(pos, topology.batch, topology.num_graphs)
+
+        sigma = torch.as_tensor(sigma).to(pos)
 
         # Compute the normalization factors.
         with torch.cuda.nvtx.range("normalization_factors"):
-            c_in, c_skip, c_out, c_noise = jamun_normalization_factors(
-                sigma, self.average_squared_distance, device=y.pos.device
+            c_in, c_skip, c_out, c_noise = compute_normalization_factors(
+                sigma,
+                average_squared_distance=self.average_squared_distance,
+                normalization_type=self.normalization_type,
+                sigma_data=self.sigma_data,
+                D=pos.shape[-1],
+                device=pos.device,
             )
         radial_cutoff = self.effective_radial_cutoff(sigma) / c_in
 
         # Adjust dimensions.
-        c_in = unsqueeze_trailing(c_in, y.pos.ndim - 1)
-        c_skip = unsqueeze_trailing(c_skip, y.pos.ndim - 1)
-        c_out = unsqueeze_trailing(c_out, y.pos.ndim - 1)
+        c_in = unsqueeze_trailing(c_in, pos.ndim - 1)
+        c_skip = unsqueeze_trailing(c_skip, pos.ndim - 1)
+        c_out = unsqueeze_trailing(c_out, pos.ndim - 1)
         c_noise = c_noise.unsqueeze(0)
 
         # Add edges to the graph.
         with torch.cuda.nvtx.range("add_edges"):
-            y = self.add_edges(y, radial_cutoff)
+            topology = self.add_edges(pos, topology, radial_cutoff)
 
-        with torch.cuda.nvtx.range("clone_y"):
-            xhat = y.clone("pos")
-
-        g = functools.partial(self.g, topology=y, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
+        g = functools.partial(self.g, topology=topology, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
         h = functools.partial(norm_wrapper, g=g, c_in=c_in, c_skip=c_skip, c_out=c_out)
 
         with torch.cuda.nvtx.range("g"):
-            xhat.pos = torch.compile(xhat_f, disable=not self.use_torch_compile, **self.torch_compile_kwargs)(y.pos, h)
+            model_predictions_fn = torch.compile(
+                model_predictions_f, disable=not self.use_torch_compile, **self.torch_compile_kwargs
+            )
+            xhat, energy, score = model_predictions_fn(pos, h, sigma)
 
-        return xhat
+        return xhat, energy, score
 
-    def xhat(self, y: torch.Tensor, sigma: float | torch.Tensor):
+    def xhat(self, y: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the denoised prediction."""
-        if self.mean_center:
-            with torch.cuda.nvtx.range("mean_center_y"):
-                y = mean_center(y)
-
-        with torch.cuda.nvtx.range("xhat_normalized"):
-            xhat = self.xhat_normalized(y, sigma)
+        with torch.cuda.nvtx.range("get_model_predictions"):
+            xhat, _, _ = self.get_model_predictions(y, topology, sigma)
 
         # Mean center the prediction.
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_xhat"):
-                xhat = mean_center(xhat)
+                xhat = mean_center_f(xhat, topology.batch, topology.num_graphs)
 
         return xhat
 
     def noise_and_denoise(
         self,
-        x: torch_geometric.data.Batch,
+        x: torch.Tensor,
+        topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch_geometric.data.Batch, torch_geometric.data.Batch]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
                 with torch.cuda.nvtx.range("mean_center_x"):
-                    x = mean_center(x)
+                    x = mean_center_f(x, topology.batch, topology.num_graphs)
 
-            sigma = torch.as_tensor(sigma).to(x.pos)
+            sigma = torch.as_tensor(sigma).to(x)
 
             with torch.cuda.nvtx.range("add_noise"):
-                y = self.add_noise(x, sigma)
+                y = self.add_noise(x, sigma, topology.num_graphs)
 
             if self.mean_center:
                 with torch.cuda.nvtx.range("mean_center_y"):
-                    y = mean_center(y)
+                    y = mean_center_f(y, topology.batch, topology.num_graphs)
 
             # Aligning each batch.
             if align_noisy_input:
                 with torch.cuda.nvtx.range("align_A_to_B_batched"):
-                    y = align_A_to_B_batched(y, x)
+                    y = align_A_to_B_batched_f(y, x, topology.batch, topology.num_graphs, sigma=sigma, correction_order=self.alignment_correction_order)
 
         with torch.cuda.nvtx.range("xhat"):
-            xhat = self.xhat(y, sigma)
+            xhat = self.xhat(y, topology, sigma)
 
         return xhat, y
 
     def compute_loss(
         self,
-        x: torch_geometric.data.Batch,
+        x: torch.Tensor,
         xhat: torch.Tensor,
+        topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute the loss."""
         if self.mean_center:
             with torch.cuda.nvtx.range("mean_center_x"):
-                x = mean_center(x)
+                x = mean_center_f(x, topology.batch, topology.num_graphs)
 
-        D = xhat.pos.shape[-1]
+        D = xhat.shape[-1]
 
         # Compute the raw loss.
         with torch.cuda.nvtx.range("raw_coordinate_loss"):
-            raw_coordinate_loss = (xhat.pos - x.pos).pow(2).sum(dim=-1)
+            raw_coordinate_loss = (xhat - x).pow(2).sum(dim=-1)
 
         # Take the mean over each graph.
         with torch.cuda.nvtx.range("mean_over_graphs"):
-            mse = scatter(raw_coordinate_loss, x.batch, dim=0, dim_size=x.num_graphs, reduce="mean")
+            mse = scatter(raw_coordinate_loss, topology.batch, dim=0, dim_size=topology.num_graphs, reduce="mean")
 
         # Compute the scaled RMSD.
         with torch.cuda.nvtx.range("scaled_rmsd"):
             rmsd = torch.sqrt(mse)
             scaled_rmsd = rmsd / (sigma * np.sqrt(D))
 
-        _, _, c_out, _ = jamun_normalization_factors(sigma, self.average_squared_distance, device=xhat.pos.device)
-
         # Account for the loss weight across graphs and noise levels.
         with torch.cuda.nvtx.range("loss_weight"):
-            loss = mse * x.loss_weight
+            loss = mse * topology.loss_weight
+
+            _, _, c_out, _ = compute_normalization_factors(
+                sigma,
+                average_squared_distance=self.average_squared_distance,
+                normalization_type=self.normalization_type,
+                sigma_data=self.sigma_data,
+                D=D,
+                device=x.device,
+            )
             loss = loss / (c_out**2)
 
         return loss, {
@@ -292,21 +326,24 @@ class EnergyModel(pl.LightningModule):
 
     def noise_and_compute_loss(
         self,
-        x: torch_geometric.data.Batch,
+        x: torch.Tensor,
+        topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
-        xhat, _ = self.noise_and_denoise(x, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, sigma)
+        xhat, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
+        return self.compute_loss(x, xhat, topology, sigma)
 
     def training_step(self, batch: torch_geometric.data.Batch, batch_idx: int):
         """Called during training."""
         with torch.cuda.nvtx.range("sample_sigma"):
             sigma = self.sigma_distribution.sample().to(self.device)
 
+        x, topology = batch.pos, batch
         loss, aux = self.noise_and_compute_loss(
-            batch,
+            x,
+            topology,
             sigma,
             align_noisy_input=self.align_noisy_input_during_training,
         )
@@ -327,7 +364,10 @@ class EnergyModel(pl.LightningModule):
     def validation_step(self, batch: torch_geometric.data.Batch, batch_idx: int):
         """Called during validation."""
         sigma = self.sigma_distribution.sample().to(self.device)
-        loss, aux = self.noise_and_compute_loss(batch, sigma, align_noisy_input=self.align_noisy_input_during_training)
+        x, topology = batch.pos, batch
+        loss, aux = self.noise_and_compute_loss(
+            x, topology, sigma, align_noisy_input=self.align_noisy_input_during_training
+        )
 
         # Average the loss and other metrics over all graphs.
         aux["loss"] = loss
@@ -355,7 +395,3 @@ class EnergyModel(pl.LightningModule):
             }
 
         return out
-
-    def on_before_optimizer_step(self, optimizer):
-        # TODO do something with the gradients
-        pass
