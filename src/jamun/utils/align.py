@@ -8,66 +8,66 @@ from e3tools import scatter
 def C1(S: torch.Tensor) -> torch.Tensor:
     """
     Coefficient for the first order correction.
-    
+
     Args:
         S: Tensor of shape [batch_size, 3] containing diagonal elements.
-    
+
     Returns:
         C1: Tensor of shape [batch_size, 3, 3] with diagonal matrices.
     """
     # Extract individual diagonal elements
     s1, s2, s3 = S[:, 0], S[:, 1], S[:, 2]  # Each is [batch_size]
-    
+
     # Compute coefficients for each batch
     c1 = 1 / (s1 + s2) + 1 / (s1 + s3)  # [batch_size]
     c2 = 1 / (s2 + s1) + 1 / (s2 + s3)  # [batch_size]
     c3 = 1 / (s3 + s1) + 1 / (s3 + s2)  # [batch_size]
-    
+
     # Stack to create diagonal elements matrix
     diag_elements = torch.stack([c1, c2, c3], dim=-1)  # [batch_size, 3]
-    
+
     # Create batch of diagonal matrices
     C1_batch = torch.diag_embed(diag_elements)  # [batch_size, 3, 3]
-    
+
     return -C1_batch / 2
 
 
 def C2(S: torch.Tensor) -> torch.Tensor:
     """
     Coefficient for the second order correction.
-    
+
     Args:
         S: Tensor of shape [batch_size, 3] containing diagonal elements.
-    
+
     Returns:
         C2: Tensor of shape [batch_size, 3, 3] with diagonal matrices.
     """
     # Extract individual diagonal elements
     s1, s2, s3 = S[:, 0], S[:, 1], S[:, 2]  # Each is [batch_size]
-    
+
     # Compute coefficients for each batch
     c1 = 1 / (s1 + s2) ** 2 + 1 / (s1 + s3) ** 2  # [batch_size]
     c2 = 1 / (s2 + s1) ** 2 + 1 / (s2 + s3) ** 2  # [batch_size]
     c3 = 1 / (s3 + s1) ** 2 + 1 / (s3 + s2) ** 2  # [batch_size]
-    
+
     # Stack to create diagonal elements matrix
     diag_elements = torch.stack([c1, c2, c3], dim=-1)  # [batch_size, 3]
-    
+
     # Create batch of diagonal matrices
     C2_batch = torch.diag_embed(diag_elements)  # [batch_size, 3, 3]
-    
+
     return -C2_batch / 8
 
 
 def alignment_correction_upto_order(S: torch.Tensor, sigma: float, correction_order: int) -> torch.Tensor:
     """
     Compute correction for alignment up to a given order.
-    
+
     Args:
         S: Tensor of shape [batch_size, 3] containing diagonal elements.
         sigma: Float scalar multiplier.
         order: Integer specifying the order of correction (0, 1, or 2).
-    
+
     Returns:
         correction: Tensor of shape [batch_size, 3, 3] with correction matrices.
     """
@@ -85,14 +85,21 @@ def alignment_correction_upto_order(S: torch.Tensor, sigma: float, correction_or
     sigma = sigma[:, None, None]
 
     if correction_order == 1:
-        return identity + (sigma ** 2) * C1(S)
+        return identity + (sigma**2) * C1(S)
     if correction_order == 2:
-        return identity + (sigma ** 2) * C1(S) + (sigma ** 4) * C2(S)
+        return identity + (sigma**2) * C1(S) + (sigma**4) * C2(S)
     else:
         raise ValueError(f"Correction order {correction_order} not supported.")
 
 
-def kabsch_algorithm(y: torch.Tensor, x: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: Optional[float] = None, correction_order: int = 0) -> torch.Tensor:
+def kabsch_algorithm(
+    y: torch.Tensor,
+    x: torch.Tensor,
+    batch: torch.Tensor,
+    num_graphs: int,
+    sigma: Optional[float] = None,
+    correction_order: int = 0,
+) -> torch.Tensor:
     """Compute the optimal rigid transformation between two sets of points.
 
     Given tensors `y` and `x` find the rigid transformation `T = (t, R)` which minimizes the RMSD between x and T(y).
@@ -207,12 +214,21 @@ def align_A_to_B(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     return A_aligned
 
 
-def align_A_to_B_batched(A: torch_geometric.data.Batch, B: torch_geometric.data.Batch, sigma: float, correction_order: int) -> torch_geometric.data.Batch:
+def align_A_to_B_batched(
+    A: torch_geometric.data.Batch, B: torch_geometric.data.Batch, sigma: float, correction_order: int
+) -> torch_geometric.data.Batch:
     """Aligns each graph of A to corresponding graph in B."""
     A.pos = kabsch_algorithm(A.pos, B.pos, A.batch, A.num_graphs, sigma=sigma, correction_order=correction_order)
     return A
 
 
-def align_A_to_B_batched_f(A: torch.Tensor, B: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: Optional[float] = None, correction_order: int = 0) -> torch.Tensor:
+def align_A_to_B_batched_f(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    batch: torch.Tensor,
+    num_graphs: int,
+    sigma: Optional[float] = None,
+    correction_order: int = 0,
+) -> torch.Tensor:
     """Aligns each graph of A to corresponding graph in B."""
     return kabsch_algorithm(A, B, batch, num_graphs, sigma=sigma, correction_order=correction_order)
