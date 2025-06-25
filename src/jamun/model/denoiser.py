@@ -273,7 +273,7 @@ class Denoiser(pl.LightningModule):
         topology: torch_geometric.data.Batch,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
@@ -292,9 +292,9 @@ class Denoiser(pl.LightningModule):
             # Aligning each batch.
             if align_noisy_input:
                 with torch.cuda.nvtx.range("align_A_to_B_batched"):
-                    y = align_A_to_B_batched_f(
-                        y,
+                    x = align_A_to_B_batched_f(
                         x,
+                        y,
                         topology.batch,
                         topology.num_graphs,
                         sigma=sigma,
@@ -304,7 +304,7 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("xhat"):
             xhat = self.xhat(y, topology, sigma)
 
-        return xhat, y
+        return xhat, x, y
 
     def compute_loss(
         self,
@@ -360,7 +360,7 @@ class Denoiser(pl.LightningModule):
         align_noisy_input: bool,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
-        xhat, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
+        xhat, x, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
         return self.compute_loss(x, xhat, topology, sigma)
 
     def training_step(self, batch: torch_geometric.data.Batch, batch_idx: int):

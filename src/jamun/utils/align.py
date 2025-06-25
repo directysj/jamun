@@ -2,7 +2,7 @@ from typing import Tuple, Optional
 
 import torch
 import torch_geometric
-from e3tools import scatter
+import e3tools
 
 
 def C1(S: torch.Tensor) -> torch.Tensor:
@@ -78,23 +78,17 @@ def alignment_correction_upto_order(S: torch.Tensor, sigma: float, correction_or
 
     if correction_order == 0:
         return identity
-
-    # Adjust sigma to not blow up.
-    sigma = torch.tensor(sigma, device=S.device, dtype=S.dtype)
-    sigma = torch.minimum(sigma, torch.sqrt(S.abs().max(dim=-1).values))
-    sigma = sigma[:, None, None]
-
     if correction_order == 1:
         return identity + (sigma**2) * C1(S)
     if correction_order == 2:
         return identity + (sigma**2) * C1(S) + (sigma**4) * C2(S)
-    else:
-        raise ValueError(f"Correction order {correction_order} not supported.")
+
+    raise ValueError(f"Correction order {correction_order} not supported.")
 
 
 def kabsch_algorithm(
-    y: torch.Tensor,
-    x: torch.Tensor,
+    A: torch.Tensor,
+    B: torch.Tensor,
     batch: torch.Tensor,
     num_graphs: int,
     sigma: Optional[float] = None,
@@ -102,15 +96,15 @@ def kabsch_algorithm(
 ) -> torch.Tensor:
     """Compute the optimal rigid transformation between two sets of points.
 
-    Given tensors `y` and `x` find the rigid transformation `T = (t, R)` which minimizes the RMSD between x and T(y).
-    Returns the aligned points y.
+    Given tensors `A` and `B` find the rigid transformation `T = (t, R)` which minimizes the RMSD between B and T(A).
+    Returns the aligned points A.
     See https://en.wikipedia.org/wiki/Kabsch_algorithm.
 
     Parameters
     ----------
-    y : Tensor
+    A : Tensor
         Shape (N, D)
-    x : Tensor
+    B : Tensor
         Shape (N, D)
     batch : Tensor | None
         Shape (N,)
@@ -121,19 +115,18 @@ def kabsch_algorithm(
         Aligned points y.
     """
     # Mean centering.
-    x_mu = scatter(x, batch, dim=-2, dim_size=num_graphs, reduce="mean")
-    y_mu = scatter(y, batch, dim=-2, dim_size=num_graphs, reduce="mean")
-
-    x_c = x - x_mu[batch]
-    y_c = y - y_mu[batch]
+    A_mu = e3tools.scatter(A, batch, dim=-2, dim_size=num_graphs, reduce="mean")
+    B_mu = e3tools.scatter(B, batch, dim=-2, dim_size=num_graphs, reduce="mean")
+    A_c = A - A_mu[batch]
+    B_c = B - B_mu[batch]
 
     # Compute batch covariance matrix.
     batch_one_hot = torch.nn.functional.one_hot(batch, num_classes=num_graphs).float()
-    H = torch.einsum("Ni,Nj,NG->Gij", y_c, x_c, batch_one_hot)
+    H = torch.einsum("Ni,Nj,NG->Gij", A_c, B_c, batch_one_hot)
 
     # SVD to get rotation.
-    U, S, VH = torch.linalg.svd(H)
-    S = alignment_correction_upto_order(S, sigma=sigma, correction_order=correction_order)
+    U, S_orig, VH = torch.linalg.svd(H)
+    S = alignment_correction_upto_order(S_orig, sigma=sigma, correction_order=correction_order)
     R_check = torch.einsum("Gki,Gkk,Gjk->Gij", VH, S, U)  # V U^T
 
     # Remove reflections.
@@ -143,11 +136,11 @@ def kabsch_algorithm(
     R = torch.einsum("Gki,Gkk,Gkk,Gjk->Gij", VH, signs, S, U)  # V S U^T
 
     # Align y to x.
-    Ry_mu = torch.einsum("Gij,Gj->Gi", R, y_mu)
-    t = x_mu - Ry_mu
+    RA_mu = torch.einsum("Gij,Gj->Gi", R, A_mu)
+    t = B_mu - RA_mu
 
-    y_aligned = torch.einsum("Nij,Nj->Ni", R[batch], y) + t[batch]
-    return y_aligned
+    A_aligned = torch.einsum("Nij,Nj->Ni", R[batch], A) + t[batch]
+    return A_aligned
 
 
 def find_rigid_alignment(A: torch.Tensor, B: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
