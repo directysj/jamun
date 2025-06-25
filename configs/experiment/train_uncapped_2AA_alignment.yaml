@@ -24,7 +24,6 @@ data:
         root: "${paths.data_path}/timewarp/2AA-1-large/train/"
         traj_pattern: "^(.*)-traj-arrays.npz"
         pdb_pattern: "^(.*)-traj-state0.pdb"
-        keep_hydrogens: true
 
       val:
         _target_: jamun.data.parse_datasets_from_directory
@@ -33,7 +32,6 @@ data:
         pdb_pattern: "^(.*)-traj-state0.pdb"
         subsample: 100
         max_datasets: 20
-        keep_hydrogens: true
 
       test:
         _target_: jamun.data.parse_datasets_from_directory
@@ -42,7 +40,6 @@ data:
         pdb_pattern: "^(.*)-traj-state0.pdb"
         subsample: 100
         max_datasets: 20
-        keep_hydrogens: true
 
 trainer:
   val_check_interval: 0.1
