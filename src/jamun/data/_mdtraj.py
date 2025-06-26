@@ -38,6 +38,7 @@ def make_graph_from_topology(
     )
     graph.residues = [x.residue.name for x in topology.atoms]
     graph.atom_names = [x.name for x in topology.atoms]
+    graph.num_nodes = topology.n_atoms
     return graph
 
 
