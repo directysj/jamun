@@ -1,11 +1,11 @@
 import logging
 from collections.abc import Callable
 
+import e3tools
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch_geometric
-import e3tools
 
 from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
 
@@ -46,7 +46,10 @@ def compute_normalization_factors(
 
 
 def add_edges(
-    y: torch.Tensor, topology: torch_geometric.data.Batch, batch: torch.Tensor, radial_cutoff: float,
+    y: torch.Tensor,
+    topology: torch_geometric.data.Batch,
+    batch: torch.Tensor,
+    radial_cutoff: float,
 ) -> torch_geometric.data.Batch:
     """Add edges to the graph based on the effective radial cutoff."""
     if topology.get("edge_index") is not None:
@@ -198,7 +201,6 @@ class Denoiser(pl.LightningModule):
     def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
-
 
     def xhat_normalized(
         self,

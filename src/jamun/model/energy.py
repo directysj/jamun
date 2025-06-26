@@ -8,8 +8,8 @@ import numpy as np
 import torch
 import torch_geometric
 
-from jamun.model.denoiser import compute_normalization_factors, add_edges
-from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing
+from jamun.model.denoiser import add_edges, compute_normalization_factors
+from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
 
 
 def energy_direct(
@@ -172,7 +172,6 @@ class EnergyModel(pl.LightningModule):
     def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
-
 
     def get_model_predictions(
         self,

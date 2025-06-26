@@ -6,6 +6,7 @@ from lightning.pytorch.utilities import rank_zero_only
 
 from jamun.data import MDtrajDataset, MDtrajSDFDataset
 from jamun.metrics import VisualizeDenoiseMetrics
+from jamun.utils import to_atom_graphs
 
 
 class VisualizeDenoise(pl.Callback):
