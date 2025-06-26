@@ -13,15 +13,9 @@ from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, u
 
 
 def energy_direct(
-    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, g_y: torch.Tensor, sigma: torch.Tensor
+    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g_y: torch.Tensor
 ) -> torch.Tensor:
     energies = (g_y - y).pow(2).sum(dim=-1) / (2 * (sigma**2))
-    if batch is None:
-        return energies.sum()
-
-    if num_graphs is None:
-        num_graphs = batch.max().item() + 1
-
     return e3tools.scatter(
         energies,
         batch,
@@ -39,7 +33,7 @@ def model_predictions_f(
     g = functools.partial(g, batch=batch, num_graphs=num_graphs)
     g_y, vjp_func = torch.func.vjp(g, y)
     xhat = g_y - vjp_func(g_y - y, create_graph=True, retain_graph=True)[0]
-    energy = energy_direct(y, batch, num_graphs, g_y, sigma)
+    energy = energy_direct(y, batch, num_graphs, sigma, g_y)
     score = (xhat - y) / (sigma**2)
     return xhat, energy, score
 
