@@ -5,7 +5,7 @@ import torch
 import torch_geometric
 from e3nn import o3
 from e3nn.o3 import Irreps
-from e3tools import scatter
+import e3tools
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 from jamun.model.noise_conditioning import NoiseConditionalScaling, NoiseConditionalSkipConnection
@@ -99,6 +99,8 @@ class E3Conv(torch.nn.Module):
     def forward(
         self,
         pos: torch.Tensor,
+        batch: torch.Tensor,
+        num_graphs: int,
         topology: torch_geometric.data.Batch,
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
@@ -131,6 +133,9 @@ class E3Conv(torch.nn.Module):
         node_attr = node_attr * self.output_gain
 
         if self.reduce is not None:
-            node_attr = scatter(node_attr, topology.batch, dim=0, reduce=self.reduce)
+            if num_graphs is None:
+                num_graphs = int(batch.max()) + 1
+
+            node_attr = e3tools.scatter(node_attr, batch, dim=0, reduce=self.reduce, dim_size=num_graphs)
 
         return node_attr
