@@ -239,19 +239,19 @@ class EnergyModel(pl.LightningModule):
         y, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
         del topology.pos, topology.batch
         sigma = torch.as_tensor(sigma).to(y)
-        _, _, score = self.get_model_predictions(y, topology, sigma, batch, num_graphs)
+        _, _, score = self.get_model_predictions(y, topology, batch, num_graphs, sigma)
         return score
 
     def energy_and_score(
         self,
         pos: torch.Tensor,
         topology: torch_geometric.data.Batch,
-        sigma: float | torch.Tensor,
         batch: torch.Tensor,
         num_graphs: int,
+        sigma: float | torch.Tensor,
     ) -> torch.Tensor:
         """Compute the energy and score for the given positions."""
-        _, energy, score = self.get_model_predictions(pos, topology, sigma, batch, num_graphs)
+        _, energy, score = self.get_model_predictions(pos, topology, batch, num_graphs, sigma)
         return energy, score
 
     def noise_and_denoise(
