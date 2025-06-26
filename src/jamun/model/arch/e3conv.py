@@ -99,9 +99,9 @@ class E3Conv(torch.nn.Module):
     def forward(
         self,
         pos: torch.Tensor,
+        topology: torch_geometric.data.Batch,
         batch: torch.Tensor,
         num_graphs: int,
-        topology: torch_geometric.data.Batch,
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
     ) -> torch.Tensor:
