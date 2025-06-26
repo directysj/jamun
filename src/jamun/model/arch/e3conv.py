@@ -133,9 +133,6 @@ class E3Conv(torch.nn.Module):
         node_attr = node_attr * self.output_gain
 
         if self.reduce is not None:
-            if num_graphs is None:
-                num_graphs = int(batch.max()) + 1
-
             node_attr = e3tools.scatter(node_attr, batch, dim=0, reduce=self.reduce, dim_size=num_graphs)
 
         return node_attr
