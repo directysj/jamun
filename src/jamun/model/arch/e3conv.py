@@ -1,11 +1,11 @@
 from collections.abc import Callable
 
 import e3nn
+import e3tools
 import torch
 import torch_geometric
 from e3nn import o3
 from e3nn.o3 import Irreps
-import e3tools
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 from jamun.model.noise_conditioning import NoiseConditionalScaling, NoiseConditionalSkipConnection

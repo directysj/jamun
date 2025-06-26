@@ -2,25 +2,26 @@ import functools
 import logging
 from collections.abc import Callable
 
+import e3tools
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch_geometric
-import e3tools
 
 from jamun.model.denoiser import compute_normalization_factors
 from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing
 
 
-def energy_direct(y: torch.Tensor, batch: torch.Tensor, num_graphs: int, g_y: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+def energy_direct(
+    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, g_y: torch.Tensor, sigma: torch.Tensor
+) -> torch.Tensor:
     energies = (g_y - y).pow(2).sum(dim=-1) / (2 * (sigma**2))
     if batch is None:
         return energies.sum()
 
     if num_graphs is None:
-        num_graphs = data.max().item() + 1
+        num_graphs = batch.max().item() + 1
 
-    # print(energies, batch, num_graphs)
     return e3tools.scatter(
         energies,
         batch,
@@ -30,7 +31,9 @@ def energy_direct(y: torch.Tensor, batch: torch.Tensor, num_graphs: int, g_y: to
     )
 
 
-def model_predictions_f(y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g: Callable) -> torch.Tensor:
+def model_predictions_f(
+    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g: Callable
+) -> torch.Tensor:
     """Returns the model predictions: xhat, energy, and score."""
     # NOTE g must be torch.Tensor to torch.Tensor
     g = functools.partial(g, batch=batch, num_graphs=num_graphs)
@@ -42,7 +45,13 @@ def model_predictions_f(y: torch.Tensor, batch: torch.Tensor, num_graphs: int, s
 
 
 def norm_wrapper(
-    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, g: Callable, c_in: torch.Tensor, c_skip: torch.Tensor, c_out: torch.Tensor
+    y: torch.Tensor,
+    batch: torch.Tensor,
+    num_graphs: int,
+    g: Callable,
+    c_in: torch.Tensor,
+    c_skip: torch.Tensor,
+    c_out: torch.Tensor,
 ) -> torch.Tensor:
     return c_skip * y + c_out * g(c_in * y, batch=batch, num_graphs=num_graphs)
 
@@ -184,7 +193,12 @@ class EnergyModel(pl.LightningModule):
         return topology
 
     def get_model_predictions(
-        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, batch: torch.Tensor, num_graphs: int, sigma: float | torch.Tensor, 
+        self,
+        pos: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
+        sigma: float | torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute the denoised prediction, energy, and score."""
         if self.mean_center:
@@ -226,7 +240,14 @@ class EnergyModel(pl.LightningModule):
 
         return xhat, energy, score
 
-    def xhat(self, y: torch.Tensor, topology: torch_geometric.data.Batch, batch: torch.Tensor, num_graphs: int, sigma: float | torch.Tensor) -> torch.Tensor:
+    def xhat(
+        self,
+        y: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
+        sigma: float | torch.Tensor,
+    ) -> torch.Tensor:
         """Compute the denoised prediction."""
         with torch.cuda.nvtx.range("get_model_predictions"):
             xhat, _, _ = self.get_model_predictions(y, topology, batch, num_graphs, sigma)
@@ -241,14 +262,18 @@ class EnergyModel(pl.LightningModule):
     def score(self, data: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
         """Compute the score function."""
         y, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        # del topology.pos, topology.batch
+        del topology.pos, topology.batch
         sigma = torch.as_tensor(sigma).to(y)
         _, _, score = self.get_model_predictions(y, topology, sigma, batch, num_graphs)
         return score
 
     def energy_and_score(
-        self, pos: torch.Tensor, topology: torch_geometric.data.Batch, sigma: float | torch.Tensor,
-        batch: torch.Tensor, num_graphs: int,
+        self,
+        pos: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        sigma: float | torch.Tensor,
+        batch: torch.Tensor,
+        num_graphs: int,
     ) -> torch.Tensor:
         """Compute the energy and score for the given positions."""
         _, energy, score = self.get_model_predictions(pos, topology, sigma, batch, num_graphs)
@@ -267,8 +292,6 @@ class EnergyModel(pl.LightningModule):
         with torch.no_grad():
             if self.mean_center:
                 with torch.cuda.nvtx.range("mean_center_x"):
-                    print("mean_center_x")
-                    print(x.shape, batch.shape, num_graphs)
                     x = mean_center_f(x, batch, num_graphs)
 
             sigma = torch.as_tensor(sigma).to(x)
@@ -295,6 +318,8 @@ class EnergyModel(pl.LightningModule):
         x: torch.Tensor,
         xhat: torch.Tensor,
         topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
         sigma: float | torch.Tensor,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute the loss."""
@@ -310,7 +335,7 @@ class EnergyModel(pl.LightningModule):
 
         # Take the mean over each graph.
         with torch.cuda.nvtx.range("mean_over_graphs"):
-            mse = scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
+            mse = e3tools.scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
 
         # Compute the scaled RMSD.
         with torch.cuda.nvtx.range("scaled_rmsd"):
@@ -348,7 +373,7 @@ class EnergyModel(pl.LightningModule):
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
         xhat, _ = self.noise_and_denoise(x, topology, batch, num_graphs, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, topology, sigma)
+        return self.compute_loss(x, xhat, topology, batch, num_graphs, sigma)
 
     def training_step(self, data: torch_geometric.data.Batch, batch_idx: int):
         """Called during training."""
@@ -356,9 +381,8 @@ class EnergyModel(pl.LightningModule):
             sigma = self.sigma_distribution.sample().to(self.device)
 
         x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        # del topology.pos, topology.batch
-        print("batch", batch)
-    
+        del topology.pos, topology.batch
+
         loss, aux = self.noise_and_compute_loss(
             x,
             topology,
@@ -386,10 +410,8 @@ class EnergyModel(pl.LightningModule):
         sigma = self.sigma_distribution.sample().to(self.device)
         # raise ValueError(data)
         x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        print("batch before", batch, x.shape)
-        # del topology.pos, topology.batch
+        del topology.pos, topology.batch
 
-        print("batch after", batch)
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training
         )
@@ -398,9 +420,7 @@ class EnergyModel(pl.LightningModule):
         aux["loss"] = loss
         for key in aux:
             aux[key] = aux[key].mean()
-            self.log(
-                f"val/{key}", aux[key], prog_bar=(key == "scaled_rmsd"), batch_size=num_graphs, sync_dist=True
-            )
+            self.log(f"val/{key}", aux[key], prog_bar=(key == "scaled_rmsd"), batch_size=num_graphs, sync_dist=True)
 
         return {
             "sigma": sigma,
