@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch_geometric
-from e3tools import radius_graph, scatter
+import e3tools
 
 from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
 
@@ -43,6 +43,35 @@ def compute_normalization_factors(
         return c_in, c_skip, c_out, c_noise
 
     raise ValueError(f"Unknown normalization type: {normalization_type}")
+
+
+def add_edges(
+    y: torch.Tensor, topology: torch_geometric.data.Batch, batch: torch.Tensor, radial_cutoff: float,
+) -> torch_geometric.data.Batch:
+    """Add edges to the graph based on the effective radial cutoff."""
+    if topology.get("edge_index") is not None:
+        return topology
+
+    topology = topology.clone()
+    with torch.cuda.nvtx.range("radial_graph"):
+        radial_edge_index = e3tools.radius_graph(y, radial_cutoff, batch)
+
+    with torch.cuda.nvtx.range("concatenate_edges"):
+        edge_index = torch.cat((radial_edge_index, topology.bonded_edge_index), dim=-1)
+        if topology.bonded_edge_index.numel() == 0:
+            bond_mask = torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=y.device)
+        else:
+            bond_mask = torch.cat(
+                (
+                    torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=y.device),
+                    torch.ones(topology.bonded_edge_index.shape[1], dtype=torch.long, device=y.device),
+                ),
+                dim=0,
+            )
+
+    topology.edge_index = edge_index
+    topology.bond_mask = bond_mask
+    return topology
 
 
 class Denoiser(pl.LightningModule):
@@ -170,38 +199,6 @@ class Denoiser(pl.LightningModule):
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
-    def add_edges(
-        self, y: torch.Tensor, topology: torch_geometric.data.Batch, radial_cutoff: float
-    ) -> torch_geometric.data.Batch:
-        """Add edges to the graph based on the effective radial cutoff."""
-        topology = topology.clone()
-        if topology.get("edge_index") is not None:
-            return topology
-
-        if "batch" in topology:
-            batch = topology["batch"]
-        else:
-            batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=self.device)
-
-        with torch.cuda.nvtx.range("radial_graph"):
-            radial_edge_index = radius_graph(y, radial_cutoff, batch)
-
-        with torch.cuda.nvtx.range("concatenate_edges"):
-            edge_index = torch.cat((radial_edge_index, topology.bonded_edge_index), dim=-1)
-            if topology.bonded_edge_index.numel() == 0:
-                bond_mask = torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device)
-            else:
-                bond_mask = torch.cat(
-                    (
-                        torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device),
-                        torch.ones(topology.bonded_edge_index.shape[1], dtype=torch.long, device=self.device),
-                    ),
-                    dim=0,
-                )
-
-        topology.edge_index = edge_index
-        topology.bond_mask = bond_mask
-        return topology
 
     def xhat_normalized(
         self,
@@ -235,14 +232,10 @@ class Denoiser(pl.LightningModule):
 
         # Add edges to the graph.
         with torch.cuda.nvtx.range("add_edges"):
-            topology = self.add_edges(y, topology, radial_cutoff)
+            topology = add_edges(y, topology, batch, radial_cutoff)
 
         with torch.cuda.nvtx.range("scale_y"):
             y_scaled = y * c_in
-
-        if self.pass_topology_as_atom_graphs:
-            with torch.cuda.nvtx.range("to_atom_graphs"):
-                y_scaled = to_atom_graphs(y_scaled)
 
         with torch.cuda.nvtx.range("g"):
             g_pred = self.g(
@@ -335,7 +328,7 @@ class Denoiser(pl.LightningModule):
 
         # Take the mean over each graph.
         with torch.cuda.nvtx.range("mean_over_graphs"):
-            mse = scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
+            mse = e3tools.scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
 
         # Compute the scaled RMSD.
         with torch.cuda.nvtx.range("scaled_rmsd"):
@@ -379,8 +372,13 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("sample_sigma"):
             sigma = self.sigma_distribution.sample().to(self.device)
 
-        x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.batch, topology.num_graphs
+        topology = data.clone()
+        del topology.pos, topology.batch, topology.num_graphs
+
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(topology)
+
+        x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 
         loss, aux = self.noise_and_compute_loss(
             x,
@@ -408,8 +406,13 @@ class Denoiser(pl.LightningModule):
         """Called during validation."""
         sigma = self.sigma_distribution.sample().to(self.device)
 
-        x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.batch, topology.num_graphs
+        topology = data.clone()
+        del topology.pos, topology.batch, topology.num_graphs
+
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(topology)
+
+        x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training

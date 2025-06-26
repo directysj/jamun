@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torch_geometric
 
-from jamun.model.denoiser import compute_normalization_factors
+from jamun.model.denoiser import compute_normalization_factors, add_edges
 from jamun.utils import align_A_to_B_batched_f, mean_center_f, unsqueeze_trailing
 
 
@@ -77,13 +77,20 @@ class EnergyModel(pl.LightningModule):
         lr_scheduler_config: dict | None = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: dict | None = None,
+        pass_topology_as_atom_graphs: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
 
         self.g = arch()
+        if use_torch_compile:
+            if torch_compile_kwargs is None:
+                torch_compile_kwargs = {}
+
+            self.g = torch.compile(self.g, **torch_compile_kwargs)
+
         self.use_torch_compile = use_torch_compile
-        self.torch_compile_kwargs = torch_compile_kwargs
+        self.torch_compile_kwargs = torch_compile_kwargs or {}
 
         py_logger = logging.getLogger("jamun")
         py_logger.info(self.g)
@@ -138,6 +145,8 @@ class EnergyModel(pl.LightningModule):
         self.mirror_augmentation_rate = mirror_augmentation_rate
         py_logger.info(f"Mirror augmentation rate: {self.mirror_augmentation_rate}")
 
+        self.pass_topology_as_atom_graphs = pass_topology_as_atom_graphs
+
     def add_noise(self, x: torch.Tensor, sigma: float | torch.Tensor, num_graphs: int) -> torch.Tensor:
         # pos [B, ...]
         sigma = unsqueeze_trailing(sigma, x.ndim)
@@ -164,33 +173,6 @@ class EnergyModel(pl.LightningModule):
         """Compute the effective radial cutoff for the noise level."""
         return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
-    def add_edges(
-        self, y: torch.Tensor, topology: torch_geometric.data.Batch, batch: torch.Tensor, radial_cutoff: float
-    ) -> torch_geometric.data.Batch:
-        """Add edges to the graph based on the effective radial cutoff."""
-        if topology.get("edge_index") is not None:
-            return topology
-
-        topology = topology.clone()
-        with torch.cuda.nvtx.range("radial_graph"):
-            radial_edge_index = e3tools.radius_graph(y, radial_cutoff, batch)
-
-        with torch.cuda.nvtx.range("concatenate_edges"):
-            edge_index = torch.cat((radial_edge_index, topology.bonded_edge_index), dim=-1)
-            if topology.bonded_edge_index.numel() == 0:
-                bond_mask = torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device)
-            else:
-                bond_mask = torch.cat(
-                    (
-                        torch.zeros(radial_edge_index.shape[1], dtype=torch.long, device=self.device),
-                        torch.ones(topology.bonded_edge_index.shape[1], dtype=torch.long, device=self.device),
-                    ),
-                    dim=0,
-                )
-
-        topology.edge_index = edge_index
-        topology.bond_mask = bond_mask
-        return topology
 
     def get_model_predictions(
         self,
@@ -227,7 +209,7 @@ class EnergyModel(pl.LightningModule):
 
         # Add edges to the graph.
         with torch.cuda.nvtx.range("add_edges"):
-            topology = self.add_edges(pos, topology, batch, radial_cutoff)
+            topology = add_edges(pos, topology, batch, radial_cutoff)
 
         g = functools.partial(self.g, topology=topology, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
         h = functools.partial(norm_wrapper, g=g, c_in=c_in, c_skip=c_skip, c_out=c_out)
@@ -380,8 +362,13 @@ class EnergyModel(pl.LightningModule):
         with torch.cuda.nvtx.range("sample_sigma"):
             sigma = self.sigma_distribution.sample().to(self.device)
 
-        x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.pos, topology.batch
+        topology = data.clone()
+        del topology.pos, topology.batch, topology.num_graphs
+
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(topology)
+
+        x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 
         loss, aux = self.noise_and_compute_loss(
             x,
@@ -408,9 +395,14 @@ class EnergyModel(pl.LightningModule):
     def validation_step(self, data: torch_geometric.data.Batch, batch_idx: int):
         """Called during validation."""
         sigma = self.sigma_distribution.sample().to(self.device)
-        # raise ValueError(data)
-        x, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.pos, topology.batch
+
+        topology = data.clone()
+        del topology.pos, topology.batch, topology.num_graphs
+
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(topology)
+
+        x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training
