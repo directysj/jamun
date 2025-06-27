@@ -26,7 +26,12 @@ def energy_direct(
 
 
 def model_predictions_f(
-    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g: Callable, energy_only: bool = False
+    y: torch.Tensor,
+    batch: torch.Tensor,
+    num_graphs: int,
+    sigma: torch.Tensor,
+    g: Callable,
+    energy_only: bool,
 ) -> torch.Tensor:
     """Returns the model predictions: xhat, energy, and score."""
     if energy_only:
@@ -180,6 +185,7 @@ class EnergyModel(pl.LightningModule):
         batch: torch.Tensor,
         num_graphs: int,
         sigma: float | torch.Tensor,
+        energy_only: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute the denoised prediction, energy, and score."""
         if self.mean_center:
@@ -215,9 +221,11 @@ class EnergyModel(pl.LightningModule):
 
         with torch.cuda.nvtx.range("g"):
             model_predictions_fn = torch.compile(
-                model_predictions_f, disable=not self.use_torch_compile, **self.torch_compile_kwargs
+                model_predictions_f,
+                disable=not self.use_torch_compile,
+                **self.torch_compile_kwargs,
             )
-            xhat, energy, score = model_predictions_fn(pos, batch, num_graphs, sigma, h)
+            xhat, energy, score = model_predictions_fn(pos, batch, num_graphs, sigma, h, energy_only=energy_only)
 
         return xhat, energy, score
 
@@ -248,7 +256,7 @@ class EnergyModel(pl.LightningModule):
         _, _, score = self.get_model_predictions(y, topology, batch, num_graphs, sigma)
         return score
 
-    def energy_and_score(
+    def energy(
         self,
         pos: torch.Tensor,
         topology: torch_geometric.data.Batch,
@@ -256,6 +264,18 @@ class EnergyModel(pl.LightningModule):
         num_graphs: int,
         sigma: float | torch.Tensor,
     ) -> torch.Tensor:
+        """Compute the energy and score for the given positions."""
+        _, energy, _ = self.get_model_predictions(pos, topology, batch, num_graphs, sigma, energy_only=True)
+        return energy
+
+    def energy_and_score(
+        self,
+        pos: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
+        sigma: float | torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute the energy and score for the given positions."""
         _, energy, score = self.get_model_predictions(pos, topology, batch, num_graphs, sigma)
         return energy, score
