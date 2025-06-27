@@ -26,9 +26,15 @@ def energy_direct(
 
 
 def model_predictions_f(
-    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g: Callable
+    y: torch.Tensor, batch: torch.Tensor, num_graphs: int, sigma: torch.Tensor, g: Callable, energy_only: bool = False
 ) -> torch.Tensor:
     """Returns the model predictions: xhat, energy, and score."""
+    if energy_only:
+        # If we only need the energy, we can skip the VJP computation.
+        g_y = g(y, batch=batch, num_graphs=num_graphs)
+        energy = energy_direct(y, batch, num_graphs, sigma, g_y)
+        return None, energy, None
+
     # NOTE g must be torch.Tensor to torch.Tensor
     g = functools.partial(g, batch=batch, num_graphs=num_graphs)
     g_y, vjp_func = torch.func.vjp(g, y)
