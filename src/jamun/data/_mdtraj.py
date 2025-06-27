@@ -14,6 +14,7 @@ from jamun import utils
 def make_graph_from_topology(
     topology: md.Topology,
 ) -> torch_geometric.data.Data:
+    """Create a PyTorch Geometric graph from an MDTraj topology."""
     # Encode the atom types, residue codes, and residue sequence indices.
     atom_type_index = torch.tensor(
         [utils.encode_atom_type(x.element.symbol) for x in topology.atoms], dtype=torch.int32
@@ -38,6 +39,7 @@ def make_graph_from_topology(
     )
     graph.residues = [x.residue.name for x in topology.atoms]
     graph.atom_names = [x.name for x in topology.atoms]
+    graph.num_nodes = topology.n_atoms
     return graph
 
 

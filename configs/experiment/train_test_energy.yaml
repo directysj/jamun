@@ -12,7 +12,7 @@ model:
   max_radius: 1.0
   optim:
     lr: 0.0001
-  use_torch_compile: false
+  use_torch_compile: true
 
 callbacks:
   viz:

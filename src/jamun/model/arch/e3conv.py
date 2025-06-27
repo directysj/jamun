@@ -1,11 +1,11 @@
 from collections.abc import Callable
 
 import e3nn
+import e3tools
 import torch
 import torch_geometric
 from e3nn import o3
 from e3nn.o3 import Irreps
-from e3tools import scatter
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 from jamun.model.noise_conditioning import NoiseConditionalScaling, NoiseConditionalSkipConnection
@@ -100,6 +100,8 @@ class E3Conv(torch.nn.Module):
         self,
         pos: torch.Tensor,
         topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
     ) -> torch.Tensor:
@@ -131,6 +133,6 @@ class E3Conv(torch.nn.Module):
         node_attr = node_attr * self.output_gain
 
         if self.reduce is not None:
-            node_attr = scatter(node_attr, topology.batch, dim=0, reduce=self.reduce)
+            node_attr = e3tools.scatter(node_attr, batch, dim=0, reduce=self.reduce, dim_size=num_graphs)
 
         return node_attr
