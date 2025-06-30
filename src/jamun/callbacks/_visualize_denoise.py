@@ -1,4 +1,4 @@
-from typing import List, Sequence, Union
+from collections.abc import Sequence
 
 import lightning.pytorch as pl
 import torch_geometric.data
@@ -6,6 +6,7 @@ from lightning.pytorch.utilities import rank_zero_only
 
 from jamun.data import MDtrajDataset, MDtrajSDFDataset
 from jamun.metrics import VisualizeDenoiseMetrics
+from jamun.utils import to_atom_graphs
 
 
 class VisualizeDenoise(pl.Callback):
@@ -13,8 +14,8 @@ class VisualizeDenoise(pl.Callback):
 
     def __init__(
         self,
-        datasets: Sequence[Union[MDtrajDataset, MDtrajSDFDataset]],
-        sigma_list: List[float],
+        datasets: Sequence[MDtrajDataset | MDtrajSDFDataset],
+        sigma_list: list[float],
         every_n_epochs: int = 1,
     ):
         super().__init__()
@@ -40,13 +41,20 @@ class VisualizeDenoise(pl.Callback):
         for visualizer in self.visualizers.values():
             visualizer.reset()
 
-    def on_validation_batch_start(self, trainer, pl_module, batch, batch_idx, dataloader_idx=0):
+    def on_validation_batch_start(self, trainer, pl_module, data, data_idx, dataloader_idx=0):
         if (pl_module.current_epoch % self.every_n_epochs) != 0:
             return
 
-        x, topology = batch.pos, batch
+        if pl_module.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(data)
+        else:
+            topology = data.clone()
+            del topology.pos, topology.batch, topology.num_graphs
+
+        x, batch, num_graphs = data.pos, data.batch, data.num_graphs
+
         for sigma in self.sigma_list:
-            xhat, _, y = pl_module.noise_and_denoise(
+            xhat, x, y = pl_module.noise_and_denoise(
                 x, topology, sigma, align_noisy_input=pl_module.align_noisy_input_during_evaluation
             )
             xhat_graphs = topology.clone()

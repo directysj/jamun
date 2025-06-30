@@ -1,5 +1,3 @@
-from typing import Tuple, Optional
-
 import torch
 import torch_geometric
 import e3tools
@@ -143,7 +141,7 @@ def kabsch_algorithm(
     return A_aligned
 
 
-def find_rigid_alignment(A: torch.Tensor, B: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def find_rigid_alignment(A: torch.Tensor, B: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Taken from https://gist.github.com/bougui505/e392a371f5bab095a3673ea6f4976cc8
 

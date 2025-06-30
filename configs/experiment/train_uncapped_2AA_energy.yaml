@@ -5,15 +5,16 @@ defaults:
 
 model:
   sigma_distribution:
-    _target_: jamun.distributions.ConstantSigma
-    sigma: 0.04
+    _target_: jamun.distributions.UniformSigma
+    sigma_min: 0.001
+    sigma_max: 0.05
   max_radius: 1.0
   optim:
     lr: 0.0001
 
 callbacks:
   viz:
-    sigma_list: ["${model.sigma_distribution.sigma}"]
+    sigma_list: [0.001, 0.01, 0.05]
 
 data:
   datamodule:
