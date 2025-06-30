@@ -373,7 +373,7 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("rotational_augmentation"):
             if self.rotational_augmentation:
                 R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
-                x = torch.einsum("ni,ji->nj", x, R)
+                x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
             x,
