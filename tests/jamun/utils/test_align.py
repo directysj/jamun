@@ -158,34 +158,6 @@ def test_correction_order_zero_sigma(correction_order: int):
     )
     batch = torch.tensor([0, 0, 0, 1, 1])
     num_graphs = 2
-    y_aligned = align_A_to_B_batched_f(y, x, batch, num_graphs, sigma=0.0, correction_order=1)
-    assert torch.allclose(y_aligned, x, atol=1e-6)
-
-
-@pytest.mark.parametrize("correction_order", [0, 1, 2])
-def test_correction_order_zero_sigma(correction_order: int):
-    y = torch.tensor(
-        [
-            [1.0, 1.0, 1.0],
-            [2.0, 2.0, 2.0],
-            [3.0, 3.0, 3.0],  # Graph 0 (3 points)
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],  # Graph 1 (2 points)
-        ],
-        dtype=torch.float32,
-    )
-    x = torch.tensor(
-        [
-            [11.0, 11.0, 11.0],
-            [12.0, 12.0, 12.0],
-            [13.0, 13.0, 13.0],  # Graph 0 (translated +10)
-            [0.0, 1.0, 0.0],
-            [-1.0, 0.0, 0.0],  # Graph 1 (rotated 90 deg around z)
-        ],
-        dtype=torch.float32,
-    )
-    batch = torch.tensor([0, 0, 0, 1, 1])
-    num_graphs = 2
     y_aligned = align_A_to_B_batched_f(y, x, batch, num_graphs, sigma=0.0, correction_order=correction_order)
     assert torch.allclose(y_aligned, x, atol=1e-6)
 
