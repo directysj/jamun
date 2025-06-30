@@ -99,6 +99,8 @@ class Denoiser(pl.LightningModule):
         lr_scheduler_config: dict | None = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: dict | None = None,
+        rotational_augmentation: bool = False,
+        alignment_correction_order: int = 0,
         pass_topology_as_atom_graphs: bool = False,
     ):
         super().__init__()
@@ -167,7 +169,13 @@ class Denoiser(pl.LightningModule):
             raise ValueError("sigma_data can only be used when normalization_type is 'EDM'")
 
         self.bond_loss_coefficient = bond_loss_coefficient
+        self.alignment_correction_order = alignment_correction_order
+        py_logger.info(f"Alignment correction order: {self.alignment_correction_order}")
+
         self.pass_topology_as_atom_graphs = pass_topology_as_atom_graphs
+        self.rotational_augmentation = rotational_augmentation
+        if self.rotational_augmentation:
+            py_logger.info("Rotational augmentation is enabled.")
 
     def add_noise(self, x: torch.Tensor, sigma: float | torch.Tensor, num_graphs: int) -> torch.Tensor:
         # pos [B, ...]
@@ -282,7 +290,7 @@ class Denoiser(pl.LightningModule):
         num_graphs: int,
         sigma: float | torch.Tensor,
         align_noisy_input: bool,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Add noise to the input and denoise it."""
         with torch.no_grad():
             if self.mean_center:
@@ -301,12 +309,19 @@ class Denoiser(pl.LightningModule):
             # Aligning each batch.
             if align_noisy_input:
                 with torch.cuda.nvtx.range("align_A_to_B_batched"):
-                    y = align_A_to_B_batched_f(y, x, batch, num_graphs)
+                    x = align_A_to_B_batched_f(
+                        x,
+                        y,
+                        topology.batch,
+                        topology.num_graphs,
+                        sigma=sigma,
+                        correction_order=self.alignment_correction_order,
+                    )
 
         with torch.cuda.nvtx.range("xhat"):
             xhat = self.xhat(y, topology, batch, num_graphs, sigma)
 
-        return xhat, y
+        return xhat, x, y
 
     def compute_loss(
         self,
@@ -366,8 +381,8 @@ class Denoiser(pl.LightningModule):
         align_noisy_input: bool,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
-        xhat, _ = self.noise_and_denoise(x, topology, batch, num_graphs, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, topology, batch, num_graphs, sigma)
+        xhat, x, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
+        return self.compute_loss(x, xhat, topology, sigma)
 
     def training_step(self, data: torch_geometric.data.Batch, data_idx: int):
         """Called during training."""
@@ -381,6 +396,11 @@ class Denoiser(pl.LightningModule):
             topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
+        with torch.cuda.nvtx.range("rotational_augmentation"):
+            if self.rotational_augmentation:
+                R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+                x = torch.einsum("ni,ij->nj", x, R.T)
+
 
         loss, aux = self.noise_and_compute_loss(
             x,
@@ -415,6 +435,9 @@ class Denoiser(pl.LightningModule):
             topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
+        if self.rotational_augmentation:
+            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            x = torch.einsum("ni,ji->nj", x, R)
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training

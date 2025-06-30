@@ -54,8 +54,8 @@ class VisualizeDenoise(pl.Callback):
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 
         for sigma in self.sigma_list:
-            xhat, y = pl_module.noise_and_denoise(
-                x, topology, batch, num_graphs, sigma, align_noisy_input=pl_module.align_noisy_input_during_evaluation
+            xhat, x, y = pl_module.noise_and_denoise(
+                x, topology, sigma, align_noisy_input=pl_module.align_noisy_input_during_evaluation
             )
             xhat_graphs = topology.clone()
             xhat_graphs.pos = xhat

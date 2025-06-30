@@ -5,16 +5,15 @@ defaults:
 
 model:
   sigma_distribution:
-    _target_: jamun.distributions.UniformSigma
-    sigma_min: 0.001
-    sigma_max: 0.05
+    _target_: jamun.distributions.ConstantSigma
+    sigma: 0.04
   max_radius: 1.0
   optim:
     lr: 0.0001
 
 callbacks:
   viz:
-    sigma_list: [0.001, 0.01, 0.05]
+    sigma_list: ["${model.sigma_distribution.sigma}"]
 
 data:
   datamodule:
@@ -25,7 +24,6 @@ data:
         root: "${paths.data_path}/timewarp/2AA-1-large/train/"
         traj_pattern: "^(.*)-traj-arrays.npz"
         pdb_pattern: "^(.*)-traj-state0.pdb"
-        keep_hydrogens: true
 
       val:
         _target_: jamun.data.parse_datasets_from_directory
@@ -34,7 +32,6 @@ data:
         pdb_pattern: "^(.*)-traj-state0.pdb"
         subsample: 100
         max_datasets: 20
-        keep_hydrogens: true
 
       test:
         _target_: jamun.data.parse_datasets_from_directory
@@ -43,7 +40,6 @@ data:
         pdb_pattern: "^(.*)-traj-state0.pdb"
         subsample: 100
         max_datasets: 20
-        keep_hydrogens: true
 
 trainer:
   val_check_interval: 0.1

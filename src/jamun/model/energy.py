@@ -82,6 +82,8 @@ class EnergyModel(pl.LightningModule):
         lr_scheduler_config: dict | None = None,
         use_torch_compile: bool = True,
         torch_compile_kwargs: dict | None = None,
+        alignment_correction_order: int = 0,
+        rotational_augmentation: bool = False,
         pass_topology_as_atom_graphs: bool = False,
     ):
         super().__init__()
@@ -149,6 +151,13 @@ class EnergyModel(pl.LightningModule):
 
         self.mirror_augmentation_rate = mirror_augmentation_rate
         py_logger.info(f"Mirror augmentation rate: {self.mirror_augmentation_rate}")
+
+        self.alignment_correction_order = alignment_correction_order
+        py_logger.info(f"Alignment correction order: {self.alignment_correction_order}")
+
+        self.rotational_augmentation = rotational_augmentation
+        if self.rotational_augmentation:
+            py_logger.info("Rotational augmentation is enabled.")
 
         self.pass_topology_as_atom_graphs = pass_topology_as_atom_graphs
 
@@ -307,12 +316,19 @@ class EnergyModel(pl.LightningModule):
             # Aligning each data.
             if align_noisy_input:
                 with torch.cuda.nvtx.range("align_A_to_B_batched"):
-                    y = align_A_to_B_batched_f(y, x, batch, num_graphs)
+                    x = align_A_to_B_batched_f(
+                        x,
+                        y,
+                        topology.batch,
+                        topology.num_graphs,
+                        sigma=sigma,
+                        correction_order=self.alignment_correction_order,
+                    )
 
         with torch.cuda.nvtx.range("xhat"):
             xhat = self.xhat(y, topology, batch, num_graphs, sigma)
 
-        return xhat, y
+        return xhat, x, y
 
     def compute_loss(
         self,
@@ -373,8 +389,8 @@ class EnergyModel(pl.LightningModule):
         align_noisy_input: bool,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
-        xhat, _ = self.noise_and_denoise(x, topology, batch, num_graphs, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, topology, batch, num_graphs, sigma)
+        xhat, x, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
+        return self.compute_loss(x, xhat, topology, sigma)
 
     def training_step(self, data: torch_geometric.data.Batch, batch_idx: int):
         """Called during training."""
@@ -388,6 +404,9 @@ class EnergyModel(pl.LightningModule):
             topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
+        if self.rotational_augmentation:
+            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
             x,
@@ -422,6 +441,10 @@ class EnergyModel(pl.LightningModule):
             topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
+        if self.rotational_augmentation:
+            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            x = torch.einsum("ni,ji->nj", x, R)
+
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training

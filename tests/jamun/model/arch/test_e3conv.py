@@ -24,7 +24,7 @@ e3nn.set_optimization_defaults(jit_script_fx=False)
 
 @pytest.fixture(scope="function")
 def model():
-    m = jamun.model.arch.E3Conv(
+    e3conv_net = jamun.model.arch.E3Conv(
         irreps_out="1x1e",
         irreps_hidden="120x0e + 32x1e",
         irreps_sh="1x0e + 1x1e",
@@ -42,7 +42,7 @@ def model():
         ),
         output_head_factory=functools.partial(e3tools.nn.EquivariantMLP, irreps_hidden_list=["120x0e + 32x1e"]),
     )
-    return m
+    return e3conv_net
 
 
 @pytest.mark.parametrize("device", [pytest.param(torch.device("cpu"), id="cpu")])
