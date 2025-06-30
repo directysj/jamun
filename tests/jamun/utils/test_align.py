@@ -1,7 +1,5 @@
-from typing import Optional
-
-import torch
 import pytest
+import torch
 
 from jamun.utils.align import align_A_to_B_batched_f
 
