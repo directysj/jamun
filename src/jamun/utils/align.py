@@ -1,6 +1,6 @@
+import e3tools
 import torch
 import torch_geometric
-import e3tools
 
 
 def C1(S: torch.Tensor) -> torch.Tensor:
@@ -89,7 +89,7 @@ def kabsch_algorithm(
     B: torch.Tensor,
     batch: torch.Tensor,
     num_graphs: int,
-    sigma: Optional[float] = None,
+    sigma: float | None = None,
     correction_order: int = 0,
 ) -> torch.Tensor:
     """Compute the optimal rigid transformation between two sets of points.
@@ -218,7 +218,7 @@ def align_A_to_B_batched_f(
     B: torch.Tensor,
     batch: torch.Tensor,
     num_graphs: int,
-    sigma: Optional[float] = None,
+    sigma: float | None = None,
     correction_order: int = 0,
 ) -> torch.Tensor:
     """Aligns each graph of A to corresponding graph in B."""

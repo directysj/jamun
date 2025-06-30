@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Callable
 
+import e3nn
 import e3tools
 import lightning.pytorch as pl
 import numpy as np
@@ -400,7 +401,6 @@ class Denoiser(pl.LightningModule):
             if self.rotational_augmentation:
                 R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
                 x = torch.einsum("ni,ij->nj", x, R.T)
-
 
         loss, aux = self.noise_and_compute_loss(
             x,

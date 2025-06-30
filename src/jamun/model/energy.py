@@ -2,6 +2,7 @@ import functools
 import logging
 from collections.abc import Callable
 
+import e3nn
 import e3tools
 import lightning.pytorch as pl
 import numpy as np
@@ -444,7 +445,6 @@ class EnergyModel(pl.LightningModule):
         if self.rotational_augmentation:
             R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
             x = torch.einsum("ni,ji->nj", x, R)
-
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training
