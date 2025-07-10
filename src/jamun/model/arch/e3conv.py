@@ -66,7 +66,8 @@ class E3Conv(torch.nn.Module):
                 embedding_dim=atom_type_embedding_dim
                 + atom_code_embedding_dim
                 + residue_code_embedding_dim
-                + residue_index_embedding_dim
+                + residue_index_embedding_dim,
+                max_value=num_atom_types,
             )
 
         self.initial_noise_scaling = NoiseConditionalScaling(self.atom_embedder.irreps_out)
