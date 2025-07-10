@@ -24,7 +24,11 @@ def compute_normalization_factors(
     sigma = torch.as_tensor(sigma, device=device)
 
     if normalization_type is None:
-        return 1.0, 0.0, 1.0, sigma
+        c_in = torch.as_tensor(1.0, device=device)
+        c_skip = torch.as_tensor(0.0, device=device)
+        c_out = torch.as_tensor(1.0, device=device)
+        c_noise = torch.as_tensor(sigma, device=device)
+        return c_in, c_skip, c_out, c_noise
 
     if normalization_type == "EDM":
         c_skip = (sigma_data**2) / (sigma**2 + sigma_data**2)
