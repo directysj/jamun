@@ -20,8 +20,39 @@ class MoleculeGNSWrapper(torch.nn.Module):
         sh_lmax: int,
         max_radius: float,
         bessel_num_bases: int,
+        use_residue_information: bool,
+        atom_type_embedding_dim: int,
+        atom_code_embedding_dim: int,
+        residue_code_embedding_dim: int,
+        residue_index_embedding_dim: int,
+        num_atom_types: int = 20,
+        num_atom_codes: int = 10,
+        num_residue_types: int = 25,
     ):
         super().__init__()
+
+        if use_residue_information:
+            self.atom_embedder = AtomEmbeddingWithResidueInformation(
+                atom_type_embedding_dim=atom_type_embedding_dim,
+                atom_code_embedding_dim=atom_code_embedding_dim,
+                residue_code_embedding_dim=residue_code_embedding_dim,
+                residue_index_embedding_dim=None,
+                use_residue_sequence_index=False,
+                num_atom_types=num_atom_types,
+                max_sequence_length=None,
+                num_atom_codes=num_atom_codes,
+                num_residue_types=num_residue_types,
+            )
+        else:
+            self.atom_embedder = SimpleAtomEmbedding(
+                embedding_dim=atom_type_embedding_dim
+                + atom_code_embedding_dim
+                + residue_code_embedding_dim,
+                max_value=num_atom_types,
+            )
+
+        self.bonded_edge_attr_dim, self.radial_edge_attr_dim = self.edge_attr_dim // 2, (self.edge_attr_dim + 1) // 2
+        self.embed_bondedness = torch.nn.Embedding(2, self.bonded_edge_attr_dim)
 
         self.model = MoleculeGNS(
             latent_dim=latent_dim,
@@ -38,13 +69,14 @@ class MoleculeGNSWrapper(torch.nn.Module):
                 normalization="component",
             ),
             outer_product_with_cutoff=True,
-            use_embedding=True,
+            use_embedding=False,
+            expects_atom_type_embedding=False,
+            node_feature_names=["atom_type_index", ],
             interaction_params={
                 "distance_cutoff": True,
                 "attention_gate": "sigmoid",
             },
-            node_feature_names=["feat"],
-            edge_feature_names=["feat"],
+            edge_feature_names=["bond_mask"],
             activation=activation,
             mlp_norm="rms_norm",
         )
@@ -56,5 +88,9 @@ class MoleculeGNSWrapper(torch.nn.Module):
         c_noise: torch.Tensor,
         effective_radial_cutoff: float,
     ) -> torch.Tensor:
-        del pos, c_noise, effective_radial_cutoff
+        topology.pos = pos
+        topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(topology.node_features["atom_type_index"],
+                                                                              topology.node_features["atom_code_index"],
+                                                                              topology.node_features["residue_code_index"],
+                                                                              topology.node_features["residue_sequence_index"])
         return self.model(topology)["pred"]

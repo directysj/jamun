@@ -49,28 +49,28 @@ class AtomEmbeddingWithResidueInformation(nn.Module):
         self.atom_type_embedding = torch.nn.Embedding(num_atom_types, atom_type_embedding_dim)
         self.atom_code_embedding = torch.nn.Embedding(num_atom_codes, atom_code_embedding_dim)
         self.residue_code_embedding = torch.nn.Embedding(num_residue_types, residue_code_embedding_dim)
-        self.residue_index_embedding = torch.nn.Embedding(max_sequence_length, residue_index_embedding_dim)
         self.use_residue_sequence_index = use_residue_sequence_index
+        if use_residue_sequence_index:
+            self.residue_index_embedding = torch.nn.Embedding(max_sequence_length, residue_index_embedding_dim)
         self.irreps_out = e3nn.o3.Irreps(
             f"{atom_type_embedding_dim}x0e + {atom_type_embedding_dim}x0e + {residue_code_embedding_dim}x0e + {residue_index_embedding_dim}x0e"
         )
 
-    def forward(self, data: utils.DataWithResidueInformation) -> torch.Tensor:
+    def forward(self, atom_type_index: torch.Tensor, atom_code_index: torch.Tensor,
+                residue_code_index: torch.Tensor, residue_sequence_index: torch.Tensor) -> torch.Tensor:
         features = []
-        atom_type_embedded = self.atom_type_embedding(data.atom_type_index)
+        atom_type_embedded = self.atom_type_embedding(atom_type_index)
         features.append(atom_type_embedded)
 
-        atom_code_embedded = self.atom_code_embedding(data.atom_code_index)
+        atom_code_embedded = self.atom_code_embedding(atom_code_index)
         features.append(atom_code_embedded)
 
-        residue_code_embedded = self.residue_code_embedding(data.residue_code_index)
+        residue_code_embedded = self.residue_code_embedding(residue_code_index)
         features.append(residue_code_embedded)
 
-        residue_sequence_index = data.residue_sequence_index
-        if not self.use_residue_sequence_index:
-            residue_sequence_index = torch.zeros_like(residue_sequence_index)
-        residue_sequence_index_embedded = self.residue_index_embedding(residue_sequence_index)
-        features.append(residue_sequence_index_embedded)
+        if self.use_residue_sequence_index:
+            residue_sequence_index_embedded = self.residue_index_embedding(residue_sequence_index)
+            features.append(residue_sequence_index_embedded)
 
         features = torch.cat(features, dim=-1)
         return features
