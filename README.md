@@ -14,7 +14,7 @@ An overview of the walk-jump sampling scheme, which is similar to classical mole
   <img src="https://github.com/prescient-design/jamun/blob/main/figures/walk-jump-overview.png?raw=true" alt="Overview of walk-jump sampling in JAMUN" width="400"/>
 </p>
 
-TICA-0,1 projections on 5AA peptides:
+TICA-0,1 projections on *unseen* 5AA peptides:
 <p align="center">
   <img width="2932" height="1288" alt="image" src="https://github.com/user-attachments/assets/988a8786-f1d3-4fa8-8444-ea9d59eac8dd" />
 </p>
