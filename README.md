@@ -3,7 +3,9 @@
 This is the official implementation of the paper
 [JAMUN: Bridging Smoothed Molecular Dynamics and Score-Based Learning for Conformational Ensembles](https://arxiv.org/abs/2410.14621).
 
-![KADL-JAMUN-trimmed](https://github.com/user-attachments/assets/75a08d81-e04d-4171-8007-6b2df5aeedc6)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8181274d-b165-45fb-8c05-00565a4f7833" alt="Overview of walk-jump sampling in JAMUN" width="400"/>
+</p>
 
 ### Summary
 Conformational ensembles of protein structures are immensely important both for understanding protein function and drug discovery in novel modalities such as cryptic pockets. Current techniques for sampling ensembles such as molecular dynamics (MD) are computationally inefficient, while many recent machine learning methods do not generalize well outside their training data. We propose JAMUN which performs MD in a smoothed, noised space of all-atom 3D conformations of molecules by utilizing the framework of walk-jump sampling. JAMUN enables ensemble generation for small peptides at rates of an order of magnitude faster than traditional molecular dynamics.
