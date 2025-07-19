@@ -25,8 +25,8 @@ def to_atom_graphs(
     batch = topology.get("batch", None)
     ptr = topology.get("ptr", None)
     if batch is None:
-        batch = torch.zeros(topology.num_nodes, dtype=torch.long)
-        ptr = torch.arange(0, topology.num_nodes + 1, dtype=torch.long)
+        batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=topology.pos.device)
+        ptr = torch.arange(0, topology.num_nodes + 1, dtype=torch.long, device=topology.pos.device)
 
     edge_graph_idx = batch[senders]
     num_graphs = topology.get("num_graphs", batch.max().item() + 1)

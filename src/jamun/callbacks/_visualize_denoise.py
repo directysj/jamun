@@ -6,7 +6,6 @@ from lightning.pytorch.utilities import rank_zero_only
 
 from jamun.data import MDtrajDataset, MDtrajSDFDataset
 from jamun.metrics import VisualizeDenoiseMetrics
-from jamun.utils import to_atom_graphs
 
 
 class VisualizeDenoise(pl.Callback):
@@ -45,11 +44,8 @@ class VisualizeDenoise(pl.Callback):
         if (pl_module.current_epoch % self.every_n_epochs) != 0:
             return
 
-        if pl_module.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(data)
-        else:
-            topology = data.clone()
-            del topology.pos, topology.batch, topology.num_graphs
+        topology = data.clone()
+        del topology.pos, topology.batch, topology.num_graphs
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
 

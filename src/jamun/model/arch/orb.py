@@ -4,6 +4,8 @@ from orb_models.forcefield.base import AtomGraphs
 from orb_models.forcefield.gns import MoleculeGNS
 from orb_models.forcefield.rbf import BesselBasis
 
+from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
+
 
 class MoleculeGNSWrapper(torch.nn.Module):
     """A wrapper for the MoleculeGNS model."""
@@ -25,6 +27,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
         atom_code_embedding_dim: int,
         residue_code_embedding_dim: int,
         residue_index_embedding_dim: int,
+        bonded_edge_attr_dim: int,
         num_atom_types: int = 20,
         num_atom_codes: int = 10,
         num_residue_types: int = 25,
@@ -36,10 +39,10 @@ class MoleculeGNSWrapper(torch.nn.Module):
                 atom_type_embedding_dim=atom_type_embedding_dim,
                 atom_code_embedding_dim=atom_code_embedding_dim,
                 residue_code_embedding_dim=residue_code_embedding_dim,
-                residue_index_embedding_dim=None,
+                residue_index_embedding_dim=residue_index_embedding_dim,
                 use_residue_sequence_index=False,
                 num_atom_types=num_atom_types,
-                max_sequence_length=None,
+                max_sequence_length=1,
                 num_atom_codes=num_atom_codes,
                 num_residue_types=num_residue_types,
             )
@@ -51,8 +54,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
                 max_value=num_atom_types,
             )
 
-        self.bonded_edge_attr_dim, self.radial_edge_attr_dim = self.edge_attr_dim // 2, (self.edge_attr_dim + 1) // 2
-        self.embed_bondedness = torch.nn.Embedding(2, self.bonded_edge_attr_dim)
+        self.bond_edge_embedder = torch.nn.Embedding(2, bonded_edge_attr_dim)
 
         self.model = MoleculeGNS(
             latent_dim=latent_dim,
@@ -71,7 +73,6 @@ class MoleculeGNSWrapper(torch.nn.Module):
             outer_product_with_cutoff=True,
             use_embedding=False,
             expects_atom_type_embedding=False,
-            node_feature_names=["atom_type_index", ],
             interaction_params={
                 "distance_cutoff": True,
                 "attention_gate": "sigmoid",
@@ -89,8 +90,13 @@ class MoleculeGNSWrapper(torch.nn.Module):
         effective_radial_cutoff: float,
     ) -> torch.Tensor:
         topology.pos = pos
-        topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(topology.node_features["atom_type_index"],
-                                                                              topology.node_features["atom_code_index"],
-                                                                              topology.node_features["residue_code_index"],
-                                                                              topology.node_features["residue_sequence_index"])
+        topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(
+            topology.node_features["atom_type_index"],
+            topology.node_features["atom_code_index"],
+            topology.node_features["residue_code_index"],
+            topology.node_features["residue_sequence_index"]
+        )
+        topology.edge_features["bond_mask_embedding"] = self.bond_edge_embedder(
+            topology.edge_features["bond_mask"].long()
+        )
         return self.model(topology)["pred"]

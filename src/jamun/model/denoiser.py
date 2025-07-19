@@ -252,6 +252,9 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("scale_y"):
             y_scaled = y * c_in
 
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(topology)
+
         with torch.cuda.nvtx.range("g"):
             g_pred = self.g(
                 pos=y_scaled,
@@ -317,8 +320,8 @@ class Denoiser(pl.LightningModule):
                     x = align_A_to_B_batched_f(
                         x,
                         y,
-                        topology.batch,
-                        topology.num_graphs,
+                        batch,
+                        num_graphs,
                         sigma=sigma,
                         correction_order=self.alignment_correction_order,
                     )
@@ -386,8 +389,8 @@ class Denoiser(pl.LightningModule):
         align_noisy_input: bool,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Add noise to the input and compute the loss."""
-        xhat, x, _ = self.noise_and_denoise(x, topology, sigma, align_noisy_input=align_noisy_input)
-        return self.compute_loss(x, xhat, topology, sigma)
+        xhat, x, _ = self.noise_and_denoise(x, topology, batch, num_graphs, sigma, align_noisy_input=align_noisy_input)
+        return self.compute_loss(x, xhat, topology, batch, num_graphs, sigma)
 
     def training_step(self, data: torch_geometric.data.Batch, data_idx: int):
         """Called during training."""
@@ -396,9 +399,6 @@ class Denoiser(pl.LightningModule):
 
         topology = data.clone()
         del topology.pos, topology.batch, topology.num_graphs
-
-        if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         with torch.cuda.nvtx.range("rotational_augmentation"):
@@ -434,9 +434,6 @@ class Denoiser(pl.LightningModule):
 
         topology = data.clone()
         del topology.pos, topology.batch, topology.num_graphs
-
-        if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
