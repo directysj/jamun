@@ -21,12 +21,13 @@ def to_atom_graphs(
     """
     senders = topology.edge_index[0]
     receivers = topology.edge_index[1]
+    device = senders.device
 
     batch = topology.get("batch", None)
     ptr = topology.get("ptr", None)
     if batch is None:
-        batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=topology.pos.device)
-        ptr = torch.arange(0, topology.num_nodes + 1, dtype=torch.long, device=topology.pos.device)
+        batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=device)
+        ptr = torch.arange(0, topology.num_nodes + 1, dtype=torch.long, device=device)
 
     edge_graph_idx = batch[senders]
     num_graphs = topology.get("num_graphs", batch.max().item() + 1)
@@ -34,9 +35,6 @@ def to_atom_graphs(
     n_edge = torch.bincount(edge_graph_idx, minlength=num_graphs)
 
     node_features: dict[str, torch.Tensor] = {}
-    node_features["positions"] = topology.pos
-
-    # Other residue-specific node features
     if topology.get("atom_type_index", None) is not None:
         node_features["atom_type_index"] = topology.atom_type_index
     if topology.get("atom_code_index", None) is not None:
