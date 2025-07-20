@@ -6,7 +6,6 @@ from orb_models.forcefield.base import AtomGraphs
 
 
 def to_atom_graphs(
-    pos: torch.Tensor,
     topology: torch_geometric.data.Batch,
     batch: torch.Tensor,
     num_graphs: int,
@@ -31,7 +30,6 @@ def to_atom_graphs(
         node_features["residue_index"] = topology.residue_index
 
     edge_features: dict[str, torch.Tensor] = {}
-    edge_features["vectors"] = pos[senders] - pos[receivers]
     if topology.get("bond_mask", None) is not None:
         edge_features["bond_mask"] = topology.bond_mask
 

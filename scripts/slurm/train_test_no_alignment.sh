@@ -6,7 +6,6 @@
 #SBATCH --gpus-per-node 2
 #SBATCH --cpus-per-task 8
 #SBATCH --time 3-0
-#SBATCH --array 0-2
 
 eval "$(conda shell.bash hook)"
 conda activate jamun
@@ -33,8 +32,7 @@ srun --cpus-per-task 8 --cpu-bind=cores,verbose \
     ++trainer.devices=$SLURM_GPUS_PER_NODE \
     ++trainer.num_nodes=$SLURM_JOB_NUM_NODES \
     ++model.use_torch_compile=false \
-    ++model.align_noisy_input_during_training=true \
-    ++model.align_noisy_input_during_evaluation=true \
-    ++model.alignment_correction_order=$SLURM_ARRAY_TASK_ID \
-    ++logger.wandb.tags=["'${SLURM_JOB_ID}'","'${RUN_KEY}'","train","align","'${SLURM_ARRAY_TASK_ID}'"] \
+    ++model.align_noisy_input_during_training=false \
+    ++model.align_noisy_input_during_evaluation=false \
+    ++logger.wandb.tags=["'${SLURM_JOB_ID}'","'${RUN_KEY}'","train","no-alignment"] \
     ++run_key=$RUN_KEY

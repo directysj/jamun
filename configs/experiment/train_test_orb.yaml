@@ -14,6 +14,7 @@ model:
   arch:
     use_torch_compile: true
   pass_topology_as_atom_graphs: true
+  rotational_augmentation: true
 
 callbacks:
   viz:

@@ -184,10 +184,6 @@ class EnergyModel(pl.LightningModule):
             y = -y
         return y
 
-    def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
-        """Compute the effective radial cutoff for the noise level."""
-        return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
-
     def get_model_predictions(
         self,
         pos: torch.Tensor,
@@ -202,7 +198,7 @@ class EnergyModel(pl.LightningModule):
             with torch.cuda.nvtx.range("mean_center_y"):
                 pos = mean_center_f(pos, batch, num_graphs)
 
-        sigma = torch.as_tensor(sigma).to(pos)
+        sigma = torch.as_tensor(sigma, device=pos.device, dtype=pos.dtype)
 
         # Compute the normalization factors.
         with torch.cuda.nvtx.range("normalization_factors"):
@@ -214,7 +210,6 @@ class EnergyModel(pl.LightningModule):
                 D=pos.shape[-1],
                 device=pos.device,
             )
-        radial_cutoff = self.effective_radial_cutoff(sigma) / c_in
 
         # Adjust dimensions.
         c_in = unsqueeze_trailing(c_in, pos.ndim - 1)
@@ -224,12 +219,12 @@ class EnergyModel(pl.LightningModule):
 
         # Add edges to the graph.
         with torch.cuda.nvtx.range("add_edges"):
-            topology = add_edges(pos, topology, batch, radial_cutoff)
+            topology = add_edges(pos, topology, batch, radial_cutoff=self.max_radius)
 
         if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(pos, topology, batch, num_graphs)
+            topology = to_atom_graphs(topology, batch, num_graphs)
 
-        g = functools.partial(self.g, topology=topology, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
+        g = functools.partial(self.g, topology=topology, c_noise=c_noise, c_in=c_in)
         h = functools.partial(norm_wrapper, g=g, c_in=c_in, c_skip=c_skip, c_out=c_out)
 
         with torch.cuda.nvtx.range("g"):
@@ -406,7 +401,7 @@ class EnergyModel(pl.LightningModule):
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
-            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
             x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
@@ -440,7 +435,7 @@ class EnergyModel(pl.LightningModule):
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
-            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
             x = torch.einsum("ni,ji->nj", x, R)
 
         loss, aux = self.noise_and_compute_loss(

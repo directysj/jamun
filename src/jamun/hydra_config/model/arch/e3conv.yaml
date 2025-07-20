@@ -11,6 +11,7 @@ residue_code_embedding_dim: 32
 residue_index_embedding_dim: 8
 use_residue_information: ${data.use_residue_information}
 use_residue_sequence_index: false
+max_radius: ${model.max_radius}
 num_atom_types: 20
 max_sequence_length: 10
 num_atom_codes: 10

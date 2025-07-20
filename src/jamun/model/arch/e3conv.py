@@ -29,6 +29,7 @@ class E3Conv(torch.nn.Module):
         residue_code_embedding_dim: int,
         residue_index_embedding_dim: int,
         use_residue_sequence_index: bool,
+        max_radius: float,
         num_atom_types: int = 20,
         max_sequence_length: int = 10,
         num_atom_codes: int = 10,
@@ -96,6 +97,7 @@ class E3Conv(torch.nn.Module):
         self.output_head = output_head_factory(irreps_in=self.irreps_hidden, irreps_out=self.irreps_out)
         self.output_gain = torch.nn.Parameter(torch.tensor(0.0))
         self.reduce = reduce
+        self.max_radius = max_radius
 
     def forward(
         self,
@@ -104,7 +106,7 @@ class E3Conv(torch.nn.Module):
         batch: torch.Tensor,
         num_graphs: int,
         c_noise: torch.Tensor,
-        effective_radial_cutoff: float,
+        c_in: torch.Tensor,
     ) -> torch.Tensor:
         # Extract edge attributes.
         edge_index = topology["edge_index"]
@@ -118,7 +120,7 @@ class E3Conv(torch.nn.Module):
         radial_edge_attr = e3nn.math.soft_one_hot_linspace(
             edge_vec.norm(dim=1),
             0.0,
-            effective_radial_cutoff,
+            (c_in * self.max_radius).squeeze(-1),
             self.radial_edge_attr_dim,
             basis="gaussian",
             cutoff=True,

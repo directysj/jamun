@@ -208,12 +208,8 @@ class Denoiser(pl.LightningModule):
         """Compute the score function."""
         y, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
         del topology.batch, topology.num_graphs
-        sigma = torch.as_tensor(sigma).to(y)
+        sigma = torch.as_tensor(sigma, device=y.device, dtype=y.dtype)
         return (self.xhat(y, topology, batch, num_graphs, sigma) - y) / (unsqueeze_trailing(sigma, y.ndim - 1) ** 2)
-
-    def effective_radial_cutoff(self, sigma: float | torch.Tensor) -> torch.Tensor:
-        """Compute the effective radial cutoff for the noise level."""
-        return torch.sqrt((self.max_radius**2) + 6 * (sigma**2))
 
     def xhat_normalized(
         self,
@@ -224,7 +220,7 @@ class Denoiser(pl.LightningModule):
         sigma: float | torch.Tensor,
     ) -> torch.Tensor:
         """Compute the denoised prediction using the normalization factors from JAMUN."""
-        sigma = torch.as_tensor(sigma).to(y)
+        sigma = torch.as_tensor(sigma, device=y.device, dtype=y.dtype)
 
         # Compute the normalization factors.
         with torch.cuda.nvtx.range("normalization_factors"):
@@ -237,8 +233,6 @@ class Denoiser(pl.LightningModule):
                 device=y.device,
             )
 
-        radial_cutoff = self.effective_radial_cutoff(sigma) / c_in
-
         # Adjust dimensions.
         c_in = unsqueeze_trailing(c_in, y.ndim - 1)
         c_skip = unsqueeze_trailing(c_skip, y.ndim - 1)
@@ -247,20 +241,20 @@ class Denoiser(pl.LightningModule):
 
         # Add edges to the graph.
         with torch.cuda.nvtx.range("add_edges"):
-            topology = add_edges(y, topology, batch, radial_cutoff)
+            topology = add_edges(y, topology, batch, radial_cutoff=self.max_radius)
 
         with torch.cuda.nvtx.range("scale_y"):
             y_scaled = y * c_in
 
         if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(y_scaled, topology, batch, num_graphs)
+            topology = to_atom_graphs(topology, batch, num_graphs)
 
         with torch.cuda.nvtx.range("g"):
             g_pred = self.g(
                 pos=y_scaled,
                 topology=topology,
                 c_noise=c_noise,
-                effective_radial_cutoff=radial_cutoff,
+                c_in=c_in,
                 batch=batch,
                 num_graphs=num_graphs,
             )
@@ -305,7 +299,7 @@ class Denoiser(pl.LightningModule):
                 with torch.cuda.nvtx.range("mean_center_x"):
                     x = mean_center_f(x, batch, num_graphs)
 
-            sigma = torch.as_tensor(sigma).to(x)
+            sigma = torch.as_tensor(sigma, device=x.device, dtype=x.dtype)
 
             with torch.cuda.nvtx.range("add_noise"):
                 y = self.add_noise(x, sigma, num_graphs)
@@ -401,9 +395,9 @@ class Denoiser(pl.LightningModule):
         del topology.pos, topology.batch, topology.num_graphs
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
-        with torch.cuda.nvtx.range("rotational_augmentation"):
-            if self.rotational_augmentation:
-                R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+        if self.rotational_augmentation:
+            with torch.cuda.nvtx.range("rotational_augmentation"):
+                R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
                 x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
@@ -437,7 +431,7 @@ class Denoiser(pl.LightningModule):
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
-            R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
+            R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
             x = torch.einsum("ni,ji->nj", x, R)
 
         loss, aux = self.noise_and_compute_loss(

@@ -1,7 +1,8 @@
 import torch
 from orb_models.forcefield.angular import SphericalHarmonics
 from orb_models.forcefield.base import AtomGraphs
-from orb_models.forcefield.gns import MoleculeGNS
+# from orb_models.forcefield.gns import MoleculeGNS
+from jamun.model.arch.orb_gns import MoleculeGNS
 from orb_models.forcefield.rbf import BesselBasis
 
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
@@ -86,13 +87,14 @@ class MoleculeGNSWrapper(torch.nn.Module):
             ),
             activation=activation,
             mlp_norm="rms_norm",
+            max_radius=max_radius,
         )
         if use_torch_compile:
             self.gns.compile(fullgraph=True, dynamic=True)
 
         # print("bro", self.gns._encoder.num_node_in_features, self.gns._encoder.num_edge_in_features)
 
-    def update_features(self, pos: torch.Tensor, topology: AtomGraphs) -> AtomGraphs:
+    def update_features(self, pos: torch.Tensor, topology: AtomGraphs, c_in: torch.Tensor) -> AtomGraphs:
         topology.positions = pos
         topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(
             topology.node_features["atom_type_index"],
@@ -103,6 +105,8 @@ class MoleculeGNSWrapper(torch.nn.Module):
         topology.edge_features["bond_mask_embedding"] = self.bond_edge_embedder(
             topology.edge_features["bond_mask"].long()
         )
+        unscaled_pos = pos / c_in
+        topology.edge_features["vectors"] = unscaled_pos[topology.senders] - unscaled_pos[topology.receivers]
         return topology
 
     def forward(
@@ -112,8 +116,8 @@ class MoleculeGNSWrapper(torch.nn.Module):
         batch: torch.Tensor,
         num_graphs: int,
         c_noise: torch.Tensor,
-        effective_radial_cutoff: float,
+        c_in: torch.Tensor,
     ) -> torch.Tensor:
-        del batch, num_graphs, c_noise, effective_radial_cutoff
-        topology = self.update_features(pos, topology)
+        del batch, num_graphs, c_noise
+        topology = self.update_features(pos, topology, c_in)
         return self.gns(topology)["pred"]
