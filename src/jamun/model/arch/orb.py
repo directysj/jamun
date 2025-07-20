@@ -1,10 +1,10 @@
 import torch
 from orb_models.forcefield.angular import SphericalHarmonics
 from orb_models.forcefield.base import AtomGraphs
-# from orb_models.forcefield.gns import MoleculeGNS
-from jamun.model.arch.orb_gns import MoleculeGNS
 from orb_models.forcefield.rbf import BesselBasis
 
+# from orb_models.forcefield.gns import MoleculeGNS
+from jamun.model.arch.orb_gns import MoleculeGNS
 from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 
 

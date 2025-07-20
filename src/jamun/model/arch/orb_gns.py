@@ -1,16 +1,16 @@
 """Minor edit of the original GNS from https://github.com/orbital-materials/orb-models/blob/main/orb_models/forcefield/gns.py"""
 
 from collections import OrderedDict
-from typing import Callable, List, Optional, Literal, Dict, Any, Tuple, Union
+from collections.abc import Callable
+from typing import Any, Literal
 
 import torch
+from orb_models.forcefield import base, segment_ops
+from orb_models.forcefield.angular import UnitVector
+from orb_models.forcefield.embedding import AtomEmbedding, AtomEmbeddingBag
+from orb_models.forcefield.nn_util import build_mlp, mlp_and_layer_norm
 from torch import nn
 from torch.nn import functional as F
-
-from orb_models.forcefield import base, segment_ops
-from orb_models.forcefield.nn_util import build_mlp, mlp_and_layer_norm
-from orb_models.forcefield.embedding import AtomEmbedding, AtomEmbeddingBag
-from orb_models.forcefield.angular import UnitVector
 
 _KEY = "feat"
 
@@ -44,7 +44,7 @@ class Encoder(nn.Module):
         latent_dim: int,
         num_mlp_layers: int,
         mlp_hidden_dim: int,
-        checkpoint: Optional[str] = None,
+        checkpoint: str | None = None,
         activation: str = "ssp",
         mlp_norm: str = "layer_norm",
     ):
@@ -61,7 +61,7 @@ class Encoder(nn.Module):
             activation (str): Activation function to use.
             layer_norm (str): Normalization layer to use in the MLP.
         """
-        super(Encoder, self).__init__()
+        super().__init__()
 
         # Encode node features with MLP
         self._node_fn = mlp_and_layer_norm(
@@ -84,9 +84,7 @@ class Encoder(nn.Module):
             mlp_norm=mlp_norm,
         )
 
-    def forward(
-        self, node_features: torch.Tensor, edge_features: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, node_features: torch.Tensor, edge_features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass to encode node and edge features.
 
         Args:
@@ -112,7 +110,7 @@ class AttentionInteractionNetwork(nn.Module):
         attention_gate: Literal["sigmoid", "softmax"] = "sigmoid",
         conditioning: bool = False,
         distance_cutoff: bool = False,
-        checkpoint: Optional[str] = None,
+        checkpoint: str | None = None,
         activation: str = "ssp",
         mlp_norm: str = "layer_norm",
     ):
@@ -135,7 +133,7 @@ class AttentionInteractionNetwork(nn.Module):
             activation (str): Activation function to use.
             mlp_norm (str): Normalization layer to use in the MLP.
         """
-        super(AttentionInteractionNetwork, self).__init__()
+        super().__init__()
         self._node_mlp = mlp_and_layer_norm(
             latent_dim * 3,
             latent_dim,
@@ -172,9 +170,9 @@ class AttentionInteractionNetwork(nn.Module):
         senders: torch.Tensor,
         receivers: torch.Tensor,
         cutoff: torch.Tensor,
-        cond_nodes: Optional[torch.Tensor] = None,
-        cond_edges: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        cond_nodes: torch.Tensor | None = None,
+        cond_edges: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Run interaction network forward pass.
 
         Args:
@@ -222,12 +220,8 @@ class AttentionInteractionNetwork(nn.Module):
         edge_features = torch.cat([edges, sent_attributes, received_attributes], dim=1)
         updated_edges = self._edge_mlp(edge_features)
 
-        sent_attributes = segment_ops.segment_sum(
-            updated_edges * send_attn, senders, nodes.shape[0]
-        )
-        received_attributes = segment_ops.segment_sum(
-            updated_edges * receive_attn, receivers, nodes.shape[0]
-        )
+        sent_attributes = segment_ops.segment_sum(updated_edges * send_attn, senders, nodes.shape[0])
+        received_attributes = segment_ops.segment_sum(updated_edges * receive_attn, receivers, nodes.shape[0])
 
         node_features = torch.cat([nodes, received_attributes, sent_attributes], dim=1)
         updated_nodes = self._node_mlp(node_features)
@@ -252,7 +246,7 @@ class Decoder(nn.Module):
         num_node_out: int,
         num_mlp_layers: int,
         mlp_hidden_dim: int,
-        checkpoint: Optional[str] = None,
+        checkpoint: str | None = None,
         activation: str = "ssp",
     ):
         """The decoder of the GNS.
@@ -266,7 +260,7 @@ class Decoder(nn.Module):
                 None (no checkpointing), 'reentrant' or 'non-reentrant'.
             activation (str): Activation function to use.
         """
-        super(Decoder, self).__init__()
+        super().__init__()
         seq = OrderedDict(
             {
                 "mlp": build_mlp(
@@ -305,16 +299,16 @@ class MoleculeGNS(nn.Module):
         mlp_hidden_dim: int,
         max_radius: int,
         rbf_transform: Callable,
-        angular_transform: Optional[Callable] = None,
+        angular_transform: Callable | None = None,
         outer_product_with_cutoff: bool = False,
         use_embedding: bool = False,  # atom type embedding
         expects_atom_type_embedding: bool = False,
-        interaction_params: Optional[Dict[str, Any]] = None,
+        interaction_params: dict[str, Any] | None = None,
         num_node_out_features: int = 3,
-        extra_embed_dims: Union[int, Tuple[int, int]] = 0,
-        node_feature_names: Optional[List[str]] = None,
-        edge_feature_names: Optional[List[str]] = None,
-        checkpoint: Optional[str] = None,
+        extra_embed_dims: int | tuple[int, int] = 0,
+        node_feature_names: list[str] | None = None,
+        edge_feature_names: list[str] | None = None,
+        checkpoint: str | None = None,
         activation: str = "ssp",
         mlp_norm: str = "layer_norm",
         **kwargs,
@@ -357,9 +351,7 @@ class MoleculeGNS(nn.Module):
 
         kwargs = {k: v for k, v in kwargs.items() if k not in self._deprecated_args}
         if kwargs:
-            raise ValueError(
-                f"The following kwargs are not arguments to MoleculeGNS: {kwargs.keys()}"
-            )
+            raise ValueError(f"The following kwargs are not arguments to MoleculeGNS: {kwargs.keys()}")
 
         self.node_feature_names = node_feature_names or []
         self.edge_feature_names = edge_feature_names or []
@@ -434,7 +426,7 @@ class MoleculeGNS(nn.Module):
 
         self.max_radius = max_radius
 
-    def forward(self, batch: base.AtomGraphs) -> Dict[str, torch.Tensor]:
+    def forward(self, batch: base.AtomGraphs) -> dict[str, torch.Tensor]:
         """Encode a graph using molecular GNS.
 
         Args:
@@ -496,9 +488,7 @@ class MoleculeGNS(nn.Module):
         # Configs now assume that the base model features are already included
         # and only specify "extra" features
         feature_names = [k for k in self.node_feature_names if k != "feat"]
-        return torch.cat(
-            [atomic_embedding, *[batch.node_features[k] for k in feature_names]], dim=-1
-        )
+        return torch.cat([atomic_embedding, *[batch.node_features[k] for k in feature_names]], dim=-1)
 
     def featurize_edges(self, batch: base.AtomGraphs) -> torch.Tensor:
         """Featurize the edges of a graph."""
@@ -514,17 +504,13 @@ class MoleculeGNS(nn.Module):
             # (nedges, x, y)
             outer_product = rbfs[:, :, None] * angular_embedding[:, None, :]
             # (nedges, x * y)
-            edge_features = cutoff * outer_product.view(
-                vectors.shape[0], self.edge_embed_size
-            )
+            edge_features = cutoff * outer_product.view(vectors.shape[0], self.edge_embed_size)
         else:
             edge_features = torch.cat([rbfs, angular_embedding], dim=1)
 
         # For backwards compatibility, exclude 'feat'
         feature_names = [k for k in self.edge_feature_names if k != "feat"]
-        return torch.cat(
-            [edge_features, *[batch.edge_features[k] for k in feature_names]], dim=-1
-        )
+        return torch.cat([edge_features, *[batch.edge_features[k] for k in feature_names]], dim=-1)
 
     def loss(self, batch: base.AtomGraphs) -> base.ModelOutput:
         """Loss function for molecular GNS. NOTE: this is rarely used directly."""
