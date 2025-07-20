@@ -10,7 +10,7 @@ activation: silu
 sh_lmax: 3
 max_radius: ${model.max_radius}
 bessel_num_bases: 8
-bonded_edge_attr_dim: 32
+bonded_edge_attr_dim: 16
 use_residue_information: true
 atom_type_embedding_dim: 8
 atom_code_embedding_dim: 8

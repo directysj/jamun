@@ -6,33 +6,18 @@ from orb_models.forcefield.base import AtomGraphs
 
 
 def to_atom_graphs(
+    pos: torch.Tensor,
     topology: torch_geometric.data.Batch,
+    batch: torch.Tensor,
+    num_graphs: int,
 ) -> AtomGraphs:
-    """
-    Maps a batched PyTorch Geometric DataWithResidueInformation object
-    (which is a torch_geometric.data.Batch) to an AtomGraphs object.
-
-    Args:
-        x (torch_geometric.data.Batch): The input PyTorch Geometric Batch object,
-                                                 expected to be a batch of DataWithResidueInformation.
-
-    Returns:
-        AtomGraphs: An AtomGraphs object populated with data from the PyG Batch.
-    """
+    """Converts a PyTorch Geometric Batch object to an AtomGraphs object for the Orb models."""
     senders = topology.edge_index[0]
     receivers = topology.edge_index[1]
     device = senders.device
 
-    batch = topology.get("batch", None)
-    ptr = topology.get("ptr", None)
-    if batch is None:
-        batch = torch.zeros(topology.num_nodes, dtype=torch.long, device=device)
-        ptr = torch.arange(0, topology.num_nodes + 1, dtype=torch.long, device=device)
-
-    edge_graph_idx = batch[senders]
-    num_graphs = topology.get("num_graphs", batch.max().item() + 1)
-    n_node = ptr[1:] - ptr[:-1]
-    n_edge = torch.bincount(edge_graph_idx, minlength=num_graphs)
+    n_node = torch.bincount(batch, minlength=num_graphs)
+    n_edge = torch.bincount(batch[senders], minlength=num_graphs)
 
     node_features: dict[str, torch.Tensor] = {}
     if topology.get("atom_type_index", None) is not None:
@@ -47,7 +32,7 @@ def to_atom_graphs(
         node_features["residue_index"] = topology.residue_index
 
     edge_features: dict[str, torch.Tensor] = {}
-    edge_features["vectors"] = topology.pos[senders] - topology.pos[receivers]
+    edge_features["vectors"] = pos[senders] - pos[receivers]
     if topology.get("bond_mask", None) is not None:
         edge_features["bond_mask"] = topology.bond_mask
 

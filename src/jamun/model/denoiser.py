@@ -253,7 +253,7 @@ class Denoiser(pl.LightningModule):
             y_scaled = y * c_in
 
         if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(topology)
+            topology = to_atom_graphs(y_scaled, topology, batch, num_graphs)
 
         with torch.cuda.nvtx.range("g"):
             g_pred = self.g(

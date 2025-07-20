@@ -226,6 +226,9 @@ class EnergyModel(pl.LightningModule):
         with torch.cuda.nvtx.range("add_edges"):
             topology = add_edges(pos, topology, batch, radial_cutoff)
 
+        if self.pass_topology_as_atom_graphs:
+            topology = to_atom_graphs(pos, topology, batch, num_graphs)
+
         g = functools.partial(self.g, topology=topology, c_noise=c_noise, effective_radial_cutoff=radial_cutoff)
         h = functools.partial(norm_wrapper, g=g, c_in=c_in, c_skip=c_skip, c_out=c_out)
 
@@ -401,9 +404,6 @@ class EnergyModel(pl.LightningModule):
         topology = data.clone()
         del topology.pos, topology.batch, topology.num_graphs
 
-        if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(topology)
-
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
             R = e3nn.o3.rand_rotation_matrix(device=self.device, dtype=x.dtype)
@@ -437,9 +437,6 @@ class EnergyModel(pl.LightningModule):
 
         topology = data.clone()
         del topology.pos, topology.batch, topology.num_graphs
-
-        if self.pass_topology_as_atom_graphs:
-            topology = to_atom_graphs(topology)
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:

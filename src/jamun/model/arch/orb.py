@@ -31,6 +31,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
         num_atom_types: int = 20,
         num_atom_codes: int = 10,
         num_residue_types: int = 25,
+        use_torch_compile: bool = True,
     ):
         super().__init__()
 
@@ -50,13 +51,14 @@ class MoleculeGNSWrapper(torch.nn.Module):
             self.atom_embedder = SimpleAtomEmbedding(
                 embedding_dim=atom_type_embedding_dim
                 + atom_code_embedding_dim
-                + residue_code_embedding_dim,
+                + residue_code_embedding_dim 
+                + residue_index_embedding_dim,
                 max_value=num_atom_types,
             )
 
         self.bond_edge_embedder = torch.nn.Embedding(2, bonded_edge_attr_dim)
 
-        self.model = MoleculeGNS(
+        self.gns = MoleculeGNS(
             latent_dim=latent_dim,
             num_message_passing_steps=num_message_passing_steps,
             num_mlp_layers=base_mlp_depth,
@@ -77,19 +79,21 @@ class MoleculeGNSWrapper(torch.nn.Module):
                 "distance_cutoff": True,
                 "attention_gate": "sigmoid",
             },
-            edge_feature_names=["bond_mask"],
+            edge_feature_names=["bond_mask_embedding"],
+            extra_embed_dims=(
+                self.atom_embedder.irreps_out.dim - 118,
+                bonded_edge_attr_dim,
+            ),
             activation=activation,
             mlp_norm="rms_norm",
         )
+        if use_torch_compile:
+            self.gns.compile(fullgraph=True, dynamic=True)
 
-    def forward(
-        self,
-        pos: torch.Tensor,
-        topology: AtomGraphs,
-        c_noise: torch.Tensor,
-        effective_radial_cutoff: float,
-    ) -> torch.Tensor:
-        topology.pos = pos
+        # print("bro", self.gns._encoder.num_node_in_features, self.gns._encoder.num_edge_in_features)
+
+    def update_features(self, pos: torch.Tensor, topology: AtomGraphs) -> AtomGraphs:
+        topology.positions = pos
         topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(
             topology.node_features["atom_type_index"],
             topology.node_features["atom_code_index"],
@@ -99,4 +103,17 @@ class MoleculeGNSWrapper(torch.nn.Module):
         topology.edge_features["bond_mask_embedding"] = self.bond_edge_embedder(
             topology.edge_features["bond_mask"].long()
         )
-        return self.model(topology)["pred"]
+        return topology
+
+    def forward(
+        self,
+        pos: torch.Tensor,
+        topology: AtomGraphs,
+        batch: torch.Tensor,
+        num_graphs: int,
+        c_noise: torch.Tensor,
+        effective_radial_cutoff: float,
+    ) -> torch.Tensor:
+        del batch, num_graphs, c_noise, effective_radial_cutoff
+        topology = self.update_features(pos, topology)
+        return self.gns(topology)["pred"]

@@ -10,7 +10,9 @@ model:
   max_radius: 1.0
   optim:
     lr: 0.002
-  use_torch_compile: true
+  use_torch_compile: false
+  arch:
+    use_torch_compile: true
   pass_topology_as_atom_graphs: true
 
 callbacks:
