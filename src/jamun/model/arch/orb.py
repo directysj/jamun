@@ -51,7 +51,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
             self.atom_embedder = SimpleAtomEmbedding(
                 embedding_dim=atom_type_embedding_dim
                 + atom_code_embedding_dim
-                + residue_code_embedding_dim 
+                + residue_code_embedding_dim
                 + residue_index_embedding_dim,
                 max_value=num_atom_types,
             )
@@ -98,7 +98,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
             topology.node_features["atom_type_index"],
             topology.node_features["atom_code_index"],
             topology.node_features["residue_code_index"],
-            topology.node_features["residue_sequence_index"]
+            topology.node_features["residue_sequence_index"],
         )
         topology.edge_features["bond_mask_embedding"] = self.bond_edge_embedder(
             topology.edge_features["bond_mask"].long()

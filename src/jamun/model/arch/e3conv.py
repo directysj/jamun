@@ -125,10 +125,12 @@ class E3Conv(torch.nn.Module):
         )
         edge_attr = torch.cat((bonded_edge_attr, radial_edge_attr), dim=-1)
 
-        node_attr = self.atom_embedder(topology.atom_type_index,
-                                       topology.atom_code_index,
-                                       topology.residue_code_index,
-                                       topology.residue_sequence_index)
+        node_attr = self.atom_embedder(
+            topology.atom_type_index,
+            topology.atom_code_index,
+            topology.residue_code_index,
+            topology.residue_sequence_index,
+        )
         node_attr = self.initial_noise_scaling(node_attr, c_noise)
         node_attr = self.initial_projector(node_attr, edge_index, edge_attr, edge_sh)
         for scaling, skip, layer in zip(self.noise_scalings, self.skip_connections, self.layers):

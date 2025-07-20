@@ -14,7 +14,6 @@ def to_atom_graphs(
     """Converts a PyTorch Geometric Batch object to an AtomGraphs object for the Orb models."""
     senders = topology.edge_index[0]
     receivers = topology.edge_index[1]
-    device = senders.device
 
     n_node = torch.bincount(batch, minlength=num_graphs)
     n_edge = torch.bincount(batch[senders], minlength=num_graphs)
