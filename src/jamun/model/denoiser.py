@@ -339,19 +339,29 @@ class Denoiser(pl.LightningModule):
             with torch.cuda.nvtx.range("mean_center_x"):
                 x = mean_center_f(x, batch, num_graphs)
 
-        D = xhat.shape[-1]
+        xhat_aligned = align_A_to_B_batched_f(
+            xhat,
+            x,
+            batch,
+            num_graphs,
+        )
 
         # Compute the raw loss.
         with torch.cuda.nvtx.range("raw_coordinate_loss"):
             raw_coordinate_loss = (xhat - x).pow(2).sum(dim=-1)
+            raw_coordinate_loss_aligned = (xhat_aligned - x).pow(2).sum(dim=-1)
 
         # Take the mean over each graph.
         with torch.cuda.nvtx.range("mean_over_graphs"):
             mse = e3tools.scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
+            mse_aligned = e3tools.scatter(raw_coordinate_loss_aligned, batch, dim=0, dim_size=num_graphs, reduce="mean")
 
         # Compute the scaled RMSD.
         with torch.cuda.nvtx.range("scaled_rmsd"):
             rmsd = torch.sqrt(mse)
+            rmsd_aligned = torch.sqrt(mse_aligned)
+
+            D = xhat.shape[-1]
             scaled_rmsd = rmsd / (sigma * np.sqrt(D))
 
         # Account for the loss weight across graphs and noise levels.
@@ -370,6 +380,7 @@ class Denoiser(pl.LightningModule):
         return loss, {
             "mse": mse,
             "rmsd": rmsd,
+            "rmsd_aligned": rmsd_aligned,
             "scaled_rmsd": scaled_rmsd,
         }
 

@@ -6,6 +6,7 @@
 #SBATCH --gpus-per-node 1
 #SBATCH --cpus-per-task 4
 #SBATCH --time 3-0
+#SBATCH --array 0-1
 
 eval "$(conda shell.bash hook)"
 conda activate jamun
@@ -26,14 +27,33 @@ echo "RUN_KEY = ${RUN_KEY}"
 
 nvidia-smi
 
+case $SLURM_ARRAY_TASK_ID in
+    0)
+        CONFIG="orb.yaml"
+        COMPILE="false"
+        ;;
+    1)
+        CONFIG="orb.yaml"
+        COMPILE="true"
+        ;;
+    *)
+        echo "Error: SLURM_ARRAY_TASK_ID out of expected range (0-3)."
+        exit 1
+        ;;
+esac
+
+echo "SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
+echo "CONFIG set to: $CONFIG"
+echo "COMPILE set to: $COMPILE"
+
 srun --cpus-per-task 4 --cpu-bind=cores,verbose \
   jamun_train --config-dir=/homefs/home/daigavaa/jamun/configs \
-    experiment=train_test.yaml \
+    experiment=train_test_orb.yaml \
+    model/arch=$CONFIG \
+    ++model.arch.use_torch_compile=$COMPILE \
     ++trainer.devices=$SLURM_GPUS_PER_NODE \
     ++trainer.num_nodes=$SLURM_JOB_NUM_NODES \
     ++trainer.max_epochs=100 \
-    ++model.sigma_distribution.sigma=1.0 \
-    ++model.align_noisy_input_during_training=false \
-    ++model.align_noisy_input_during_evaluation=false \
-    ++logger.wandb.tags=["'${SLURM_JOB_ID}'","'${RUN_KEY}'","train","no-alignment"] \
+    ++model.sigma_distribution.sigma=0.04 \
+    ++logger.wandb.tags=["'${SLURM_JOB_ID}'","'${RUN_KEY}'","train","model_sweep"] \
     ++run_key=$RUN_KEY

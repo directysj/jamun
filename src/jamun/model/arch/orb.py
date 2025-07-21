@@ -92,21 +92,32 @@ class MoleculeGNSWrapper(torch.nn.Module):
         if use_torch_compile:
             self.gns.compile(fullgraph=True, dynamic=True)
 
-        # print("bro", self.gns._encoder.num_node_in_features, self.gns._encoder.num_edge_in_features)
 
     def update_features(self, pos: torch.Tensor, topology: AtomGraphs, c_in: torch.Tensor) -> AtomGraphs:
-        topology.positions = pos
-        topology.node_features["atomic_numbers_embedding"] = self.atom_embedder(
+        atomic_numbers_embedding = self.atom_embedder(
             topology.node_features["atom_type_index"],
             topology.node_features["atom_code_index"],
             topology.node_features["residue_code_index"],
             topology.node_features["residue_sequence_index"],
         )
-        topology.edge_features["bond_mask_embedding"] = self.bond_edge_embedder(
+        bond_mask_embedding = self.bond_edge_embedder(
             topology.edge_features["bond_mask"].long()
         )
         unscaled_pos = pos / c_in
-        topology.edge_features["vectors"] = unscaled_pos[topology.senders] - unscaled_pos[topology.receivers]
+        vectors = unscaled_pos[topology.senders] - unscaled_pos[topology.receivers]
+        
+        topology = topology._replace(
+            node_features={
+                **topology.node_features,
+                "positions": pos,
+                "atomic_numbers_embedding": atomic_numbers_embedding,
+            },
+            edge_features={
+                **topology.edge_features,
+                "vectors": vectors,
+                "bond_mask_embedding": bond_mask_embedding,
+            },
+        )
         return topology
 
     def forward(
