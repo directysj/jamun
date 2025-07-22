@@ -92,7 +92,6 @@ class MoleculeGNSWrapper(torch.nn.Module):
         if use_torch_compile:
             self.gns.compile(fullgraph=True, dynamic=True)
 
-
     def update_features(self, pos: torch.Tensor, topology: AtomGraphs, c_in: torch.Tensor) -> AtomGraphs:
         atomic_numbers_embedding = self.atom_embedder(
             topology.node_features["atom_type_index"],
@@ -100,12 +99,10 @@ class MoleculeGNSWrapper(torch.nn.Module):
             topology.node_features["residue_code_index"],
             topology.node_features["residue_sequence_index"],
         )
-        bond_mask_embedding = self.bond_edge_embedder(
-            topology.edge_features["bond_mask"].long()
-        )
+        bond_mask_embedding = self.bond_edge_embedder(topology.edge_features["bond_mask"].long())
         unscaled_pos = pos / c_in
         vectors = unscaled_pos[topology.senders] - unscaled_pos[topology.receivers]
-        
+
         topology = topology._replace(
             node_features={
                 **topology.node_features,
