@@ -110,13 +110,12 @@ class MDtrajDataModule(pl.LightningDataModule):
             if datasets is None:
                 continue
 
-            if isinstance(datasets[0], Dataset):
-                self.concatenated_datasets[split] = ConcatDataset(datasets)
-                self.shuffle = True
-
-            elif isinstance(datasets[0], IterableDataset):
+            if isinstance(datasets[0], IterableDataset):
                 self.concatenated_datasets[split] = StreamingRandomChainDataset(datasets)
                 self.shuffle = False
+            elif isinstance(datasets[0], Dataset):
+                self.concatenated_datasets[split] = ConcatDataset(datasets)
+                self.shuffle = True
 
             utils.dist_log(
                 f"Split {split}: Loaded {len(datasets)} datasets: {[dataset.label() for dataset in datasets]}."
