@@ -1,9 +1,8 @@
 # @package _global_
 
-compute_average_squared_distance_from_data: false
+compute_average_squared_distance_from_data: true
 
 model:
-  average_squared_distance: 0.332
   sigma_distribution:
     _target_: jamun.distributions.ConstantSigma
     sigma: 0.04
@@ -60,8 +59,3 @@ trainer:
 logger:
   wandb:
     group: train_mdgen
-
-
-resume_from_checkpoint:
-  wandb_train_run_path: prescient-design/jamun/brd51ln4
-  checkpoint_type: last

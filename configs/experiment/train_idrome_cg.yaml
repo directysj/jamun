@@ -3,10 +3,9 @@
 defaults:
   - _self_
 
-compute_average_squared_distance_from_data: false
+compute_average_squared_distance_from_data: true
 
 model:
-  average_squared_distance: 9.5
   sigma_distribution:
     _target_: jamun.distributions.ConstantSigma
     sigma: 0.25
@@ -14,10 +13,6 @@ model:
   optim:
     lr: 0.002
   use_torch_compile: true
-  torch_compile_kwargs:
-    fullgraph: true
-    dynamic: true
-    mode: default
 
 callbacks:
   viz:
@@ -32,7 +27,7 @@ data:
         _target_: jamun.data.parse_datasets_from_directory_new
         root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
         traj_pattern: "^(.*)/traj.xtc"
-        pdb_pattern: "^(.*)/top.pdb"
+        topology_pattern: "^(.*)/top.pdb"
         filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/train.csv"
         filter_codes_csv_header: "code"
 
@@ -40,7 +35,7 @@ data:
         _target_: jamun.data.parse_datasets_from_directory_new
         root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
         traj_pattern: "^(.*)/traj.xtc"
-        pdb_pattern: "^(.*)/top.pdb"
+        topology_pattern: "^(.*)/top.pdb"
         subsample: 100
         filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/val.csv"
         filter_codes_csv_header: "code"
@@ -49,7 +44,7 @@ data:
         _target_: jamun.data.parse_datasets_from_directory_new
         root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
         traj_pattern: "^(.*)/traj.xtc"
-        pdb_pattern: "^(.*)/top.pdb"
+        topology_pattern: "^(.*)/top.pdb"
         subsample: 100
         filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/test.csv"
         filter_codes_csv_header: "code"
@@ -61,9 +56,9 @@ trainer:
   max_epochs: 10
 
 
-resume_from_checkpoint:
-  wandb_train_run_path: prescient-design/jamun/dea4gbvs
-  checkpoint_type: last
+# resume_from_checkpoint:
+#   wandb_train_run_path: prescient-design/jamun/dea4gbvs
+#   checkpoint_type: last
 
 logger:
   wandb:
