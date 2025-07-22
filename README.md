@@ -178,7 +178,7 @@ We provide scripts for analysing JAMUN and original MD trajectories in [https://
 We provide scripts for generating MD simulation data with [OpenMM](https://openmm.org/), including energy minimization and calibration steps with NVT and NPT ensembles.
 
 ```bash
-python scripts/generate_data/run_simulation.py [INIT_PDB]
+python scripts/MD/run_simulation.py [INIT_PDB]
 ```
 
 The defaults correspond to our setup for the capped diamines.
@@ -201,8 +201,8 @@ If you found this repository useful, please cite our preprint!
 
 ```bibtex
 @misc{daigavane2024jamuntransferablemolecularconformational,
-      title={JAMUN: Transferable Molecular Conformational Ensemble Generation with Walk-Jump Sampling},
-      author={Ameya Daigavane and Bodhi P. Vani and Saeed Saremi and Joseph Kleinhenz and Joshua Rackers},
+      title={JAMUN: Bridging Smoothed Molecular Dynamics and Score-Based Learning for Conformational Ensembles},
+      author={Ameya Daigavane and Bodhi P. Vani and Darcy Davidson and Saeed Saremi and Joshua Rackers and Joseph Kleinhenz},
       year={2024},
       eprint={2410.14621},
       archivePrefix={arXiv},
