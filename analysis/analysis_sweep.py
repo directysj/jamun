@@ -1,24 +1,25 @@
 import argparse
 import os
-import sys
 import subprocess
-from typing import Optional, List
+import sys
 
 import pandas as pd
 
 sys.path.append("./")
 
 import load_trajectory
+
 import jamun.utils
+
 
 def run_analysis(
     peptide: str,
     trajectory: str,
     reference: str,
-    run_path: Optional[str],
+    run_path: str | None,
     experiment: str,
     output_dir: str,
-    shorten_trajectory_factor: Optional[int] = None,
+    shorten_trajectory_factor: int | None = None,
 ) -> None:
     """Run analysis for a single peptide."""
     cmd = [
@@ -39,12 +40,12 @@ def run_analysis(
 
     print(f"Running command: {' '.join(cmd)}")
     try:
-        launched = subprocess.run(cmd, check=True, stdout=None, stderr=None)
+        subprocess.run(cmd, check=True, stdout=None, stderr=None)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error running command: {' '.join(cmd)}: {e.stderr}")
+        raise RuntimeError(f"Error running command: {' '.join(cmd)}: {e.stderr}") from e
 
 
-def get_dataframe_of_runs(csv: str, experiment: Optional[str] = None) -> pd.DataFrame:
+def get_dataframe_of_runs(csv: str, experiment: str | None = None) -> pd.DataFrame:
     """Read the CSV file and filter for the specified experiment."""
 
     # Read wandb run paths from CSV.
@@ -72,9 +73,7 @@ def analyze_Boltz1_trajectories(args):
     # Read all peptides.
     data_path = load_trajectory.get_data_path(args.data_path)
     samples_path = os.path.join(data_path, "boltz-preprocessed")
-    peptides = [
-        os.path.splitext(filename)[0] for filename in os.listdir(samples_path) if filename.endswith(".pdb")
-    ]
+    peptides = [os.path.splitext(filename)[0] for filename in os.listdir(samples_path) if filename.endswith(".pdb")]
     peptides = list(sorted(peptides))
     print(f"Peptides: {peptides}")
 
@@ -161,9 +160,11 @@ def analyze_BioEmu_trajectories(args):
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Read all peptides.
-    peptides = sorted(load_trajectory.load_all_trajectories_with_info(
-        trajectory_name="BioEmuSamples", data_path=args.data_path
-    ).keys())
+    peptides = sorted(
+        load_trajectory.load_all_trajectories_with_info(
+            trajectory_name="BioEmuSamples", data_path=args.data_path
+        ).keys()
+    )
     print(f"Peptides: {peptides}")
 
     # Choose row to analyze.
@@ -246,9 +247,7 @@ def main():
     mdgen_parser.add_argument(
         "--data-path", type=str, help="Path to JAMUN data directory. Defaults to JAMUN_DATA_PATH environment variable."
     )
-    mdgen_parser.add_argument(
-        "--peptide-type", type=str, required=True, help="Peptide type", choices=["4AA", "5AA"]
-    )
+    mdgen_parser.add_argument("--peptide-type", type=str, required=True, help="Peptide type", choices=["4AA", "5AA"])
 
     # BioEmu sample analysis
     bioemu_parser = subparsers.add_parser("bioemu", help="Analyze BioEmu trajectories")
@@ -279,7 +278,6 @@ def main():
     tbg_parser.add_argument("--experiment", type=str, required=True, help="Experiment type")
 
     args = parser.parse_args()
-
 
     if args.analysis_type == "boltz":
         analyze_Boltz1_trajectories(args)

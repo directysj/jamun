@@ -1,19 +1,18 @@
-from typing import Dict, Any, Tuple, Optional
-import os
-import logging
 import argparse
-import sys
-import pickle
-import warnings
 import collections
+import logging
+import os
+import pickle
+import sys
+import warnings
+from typing import Any
 
-import scipy.stats
 import mdtraj as md
-import pyemma.coordinates.data
 import numpy as np
-import mdtraj as md
 import pyemma
 import pyemma.coordinates.clustering
+import pyemma.coordinates.data
+import scipy.stats
 from scipy.spatial import distance
 from statsmodels.tsa import stattools
 
@@ -50,116 +49,10 @@ def subset_reference_trajectory(
     ref_traj_subset_md = ref_traj_md[: int(factor * ref_traj_md.n_frames)]
     return ref_traj_subset_md
 
-def analyze_trajectories_sdf(traj_md: md.Trajectory, sdf_file: str) -> Dict[str, Any]:
-    """Run analysis on the trajectories and return results dictionary."""
-
-    # Featurize trajectories.
-    results = {}
-    results["featurization"] = analysis_utils_sdf.featurize_trajectories_macrocycle(traj_md, sdf_file)
-
-    py_logger.info(f"Analysis_utils_sdf Featurization complete.")
-    traj_results = results["featurization"]["traj"]
-    traj_feats = traj_results["feats"]["torsions"]
-    traj_featurized_dict = traj_results["traj_featurized"]
-    traj_featurized = traj_featurized_dict["torsions"]
-
-    ref_traj_results = results["featurization"]["ref_traj"]
-    ref_traj_featurized_dict = ref_traj_results["traj_featurized"]
-    ref_traj_featurized = ref_traj_featurized_dict["torsions"]
-    py_logger.info(f"Featurization complete.")
-
-    py_logger.info(f"this is the traj results: {traj_results}")
-    py_logger.info(f"this is the ref traj results: {ref_traj_results}")
-    py_logger.info(f"this is the traj feats: {traj_feats}")
-    py_logger.info(f"this is the ref traj feats: {ref_traj_results['feats']}")
-    py_logger.info(f"this is the traj featurized dict: {traj_featurized_dict}")
-    py_logger.info(f"this is the ref traj featurized dict: {ref_traj_featurized_dict}")
-
-    py_logger.info(f"this is the traj featurized: {traj_featurized}")
-    py_logger.info(f"this is the ref traj featurized: {ref_traj_featurized}")
-
-    # Compute feature histograms.
-    results["feature_histograms"] = analysis_utils.compute_feature_histograms(
-        traj_featurized_dict,
-        ref_traj_featurized_dict,
-    )
-    py_logger.info(f"Feature histograms computed.")
-
-    # Compute PMFs.
-    results["PMFs"] = analysis_utils_sdf.compute_PMFs_mc(
-        traj_featurized,
-        ref_traj_featurized,
-        traj_feats,
-    )
-    py_logger.info(f"PMFs computed.")
-
-    # Compute JSDs.
-    results["JSD_torsion_stats"] = analysis_utils.compute_JSD_torsion_stats(
-        traj_featurized,
-        ref_traj_featurized,
-        traj_feats,
-    )
-    py_logger.info(f"JSD torsion stats computed.")
-
-    # Compute JSDs of torsions against time.
-    results["JSD_torsion_stats_against_time"] = analysis_utils.compute_JSD_torsion_stats_against_time(
-        traj_featurized,
-        ref_traj_featurized,
-        traj_feats,
-    )
-    py_logger.info(f"JSD torsion stats as a function of time computed.")
-
-    traj_featurized_cossin = traj_featurized_dict["torsions_cossin"]
-    ref_traj_featurized_cossin = ref_traj_featurized_dict["torsions_cossin"]
-
-    # TICA analysis.
-    results["TICA"] = analysis_utils.compute_TICA(
-        traj_featurized_cossin,
-        ref_traj_featurized_cossin,
-    )
-    py_logger.info(f"TICA computed.")
-
-    traj_tica = results["TICA"]["traj_tica"]
-    ref_traj_tica = results["TICA"]["ref_traj_tica"]
-
-    # Compute TICA stats.
-    results["TICA_stats"] = analysis_utils.compute_TICA_stats(
-        traj_tica,
-        ref_traj_tica,
-    )
-    py_logger.info(f"TICA stats computed.")
-
-    # Compute autocorrelation stats.
-    results["autocorrelation_stats"] = analysis_utils.compute_autocorrelation_stats(
-        traj_tica,
-        ref_traj_tica,
-    )
-    py_logger.info(f"Autocorrelation stats computed.")
-
-    # Compute MSM stats.
-    # Sometimes, this fails because the reference trajectory is too short.
-    try:
-        results["MSM_stats"] = analysis_utils.compute_MSM_stats(
-            traj_tica,
-            ref_traj_tica,
-        )
-        py_logger.info(f"MSM stats computed.")
-
-        # Compute JSDs against time.
-        results["JSD_MSM_stats_against_time"] = analysis_utils.compute_JSD_MSM_stats_against_time(
-            traj_tica,
-            ref_traj_tica,
-        )
-        py_logger.info(f"JSD MSM stats as a function of time computed.")
-
-    except IndexError:
-        py_logger.warning(f"MSM stats could not be computed.")
-
-    return results
 
 def featurize_trajectory_with_torsions(
     traj: md.Trajectory, cossin: bool
-) -> Tuple[pyemma.coordinates.featurizer, np.ndarray]:
+) -> tuple[pyemma.coordinates.featurizer, np.ndarray]:
     """Featurize an MDTraj trajectory with backbone and sidechain torsion angles using pyEMMA.
     Adapted from MDGen.
 
@@ -178,7 +71,7 @@ def featurize_trajectory_with_torsions(
     return feats, traj_featurized
 
 
-def featurize_trajectory_with_distances(traj: md.Trajectory) -> Tuple[pyemma.coordinates.featurizer, np.ndarray]:
+def featurize_trajectory_with_distances(traj: md.Trajectory) -> tuple[pyemma.coordinates.featurizer, np.ndarray]:
     """Featurize an MDTraj trajectory with pairwise distances using pyEMMA."""
     feats = pyemma.coordinates.featurizer(traj.topology)
     alpha_carbon_distance_pairs = feats.pairs(feats.select_Ca())
@@ -187,7 +80,7 @@ def featurize_trajectory_with_distances(traj: md.Trajectory) -> Tuple[pyemma.coo
     return feats, traj_featurized
 
 
-def featurize_trajectory(traj: md.Trajectory) -> Dict[str, np.ndarray]:
+def featurize_trajectory(traj: md.Trajectory) -> dict[str, np.ndarray]:
     """Featurize an MDTraj trajectory with backbone, and sidechain torsion angles and distances using pyEMMA."""
 
     feats, traj_featurized = featurize_trajectory_with_torsions(traj, cossin=False)
@@ -208,7 +101,7 @@ def featurize_trajectory(traj: md.Trajectory) -> Dict[str, np.ndarray]:
     }
 
 
-def compute_feature_histograms(traj_featurized_dict: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+def compute_feature_histograms(traj_featurized_dict: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """Compute histograms of features for a trajectory."""
     return {
         key: pyemma_helper.compute_1D_histogram(traj_featurized)
@@ -221,7 +114,7 @@ def compute_PMF(
     feats: pyemma.coordinates.data.MDFeaturizer,
     num_bins: int = 50,
     internal_angles: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Compute the potential of mean force (PMF) for a trajectory along a dihedral angle."""
     psi_indices = [i for i, feat in enumerate(feats.describe()) if feat.startswith("PSI")]
     phi_indices = [i for i, feat in enumerate(feats.describe()) if feat.startswith("PHI")]
@@ -253,7 +146,7 @@ def compute_PMF(
     }
 
 
-def compute_dihedral_PMFs(traj: np.ndarray, feats: pyemma.coordinates.data.MDFeaturizer) -> Dict[str, np.ndarray]:
+def compute_dihedral_PMFs(traj: np.ndarray, feats: pyemma.coordinates.data.MDFeaturizer) -> dict[str, np.ndarray]:
     """Compute the potential of mean force (PMF) for a trajectory along a dihedral angle."""
     return {
         "pmf_all": compute_PMF(traj, feats, internal_angles=False),
@@ -263,7 +156,7 @@ def compute_dihedral_PMFs(traj: np.ndarray, feats: pyemma.coordinates.data.MDFea
 
 def get_KMeans(
     traj_featurized: np.ndarray, K: int
-) -> Tuple[pyemma.coordinates.clustering.KmeansClustering, np.ndarray]:
+) -> tuple[pyemma.coordinates.clustering.KmeansClustering, np.ndarray]:
     """Cluster a featurized trajectory using k-means clustering. Taken from MDGen."""
     kmeans = pyemma.coordinates.cluster_kmeans(traj_featurized, k=K, max_iter=100, fixed_seed=137)
     return kmeans, kmeans.transform(traj_featurized)[:, 0]
@@ -277,7 +170,7 @@ def get_MSM(traj_featurized: np.ndarray, lag: int, num_states: int):
     return msm, pcca, cmsm
 
 
-def get_MSM_after_KMeans(ref_traj_tica: np.ndarray) -> Dict[str, np.ndarray]:
+def get_MSM_after_KMeans(ref_traj_tica: np.ndarray) -> dict[str, np.ndarray]:
     """Compute MSM after KMeans clustering."""
     kmeans, ref_kmeans = get_KMeans(ref_traj_tica, K=100)
     msm, pcca, cmsm = get_MSM(ref_kmeans, lag=1000, num_states=10)
@@ -298,7 +191,7 @@ def discretize(
 
 def compute_JSD_torsions(
     traj_featurized: np.ndarray, ref_traj_featurized: np.ndarray, feats: pyemma.coordinates.data.MDFeaturizer
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute Jenson-Shannon distances for a trajectory and reference trajectory. Taken from MDGen."""
     results = {}
     for i, feat in enumerate(feats.describe()):
@@ -341,7 +234,7 @@ def compute_JSD_torsions(
     return results
 
 
-def get_steps(traj_length: int) -> Tuple[np.ndarray, np.ndarray]:
+def get_steps(traj_length: int) -> tuple[np.ndarray, np.ndarray]:
     """Get steps for computing Jenson-Shannon distances against time."""
     progress = [0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
     progress = np.asarray(progress)
@@ -352,7 +245,7 @@ def get_steps(traj_length: int) -> Tuple[np.ndarray, np.ndarray]:
 
 def compute_JSD_torsions_against_time(
     traj_featurized: np.ndarray, ref_traj_featurized: np.ndarray, feats: pyemma.coordinates.data.MDFeaturizer
-) -> Dict[str, Dict[int, Dict[str, float]]]:
+) -> dict[str, dict[int, dict[str, float]]]:
     """Computes the Jenson-Shannon distance between the Ramachandran distributions of a trajectory and a reference trajectory at different time points."""
     steps, progress = get_steps(len(traj_featurized))
     return {
@@ -409,7 +302,7 @@ def compute_torsion_decorrelations(
     return torsion_decorrelations
 
 
-def compute_TICA(traj_featurized: np.ndarray, ref_traj_featurized: np.ndarray) -> Dict[str, np.ndarray]:
+def compute_TICA(traj_featurized: np.ndarray, ref_traj_featurized: np.ndarray) -> dict[str, np.ndarray]:
     """Compute TICA projections of trajectories."""
     tica = pyemma.coordinates.tica(ref_traj_featurized, lag=1000, var_cutoff=0.99, kinetic_map=True)
     ref_traj_tica = tica.transform(ref_traj_featurized)
@@ -421,12 +314,12 @@ def compute_TICA(traj_featurized: np.ndarray, ref_traj_featurized: np.ndarray) -
     }
 
 
-def compute_TICA_histogram_for_plotting(traj_tica: np.ndarray) -> Dict[str, np.ndarray]:
+def compute_TICA_histogram_for_plotting(traj_tica: np.ndarray) -> dict[str, np.ndarray]:
     """Compute histograms of TICA projections for plotting."""
     return pyemma_helper.compute_2D_histogram(traj_tica[:, 0], traj_tica[:, 1])
 
 
-def compute_JSD_TICA(traj_tica: np.ndarray, ref_traj_tica: np.ndarray) -> Dict[str, float]:
+def compute_JSD_TICA(traj_tica: np.ndarray, ref_traj_tica: np.ndarray) -> dict[str, float]:
     """Compute Jenson-Shannon distances on TICA projections of trajectories."""
     tica_0_min = min(ref_traj_tica[:, 0].min(), traj_tica[:, 0].min())
     tica_0_max = max(ref_traj_tica[:, 0].max(), traj_tica[:, 0].max())
@@ -453,7 +346,7 @@ def compute_JSD_TICA(traj_tica: np.ndarray, ref_traj_tica: np.ndarray) -> Dict[s
 def compute_JSD_TICA_against_time(
     traj_tica: np.ndarray,
     ref_traj_tica: np.ndarray,
-) -> Dict[int, Dict[str, float]]:
+) -> dict[int, dict[str, float]]:
     """Compute Jenson-Shannon distances for a trajectory and reference trajectory."""
     steps, progress = get_steps(len(traj_tica))
     return {
@@ -465,7 +358,7 @@ def compute_JSD_TICA_against_time(
     }
 
 
-def compute_TICA_decorrelations(traj_tica: np.ndarray, ref_traj_tica: np.ndarray) -> Dict[str, np.ndarray]:
+def compute_TICA_decorrelations(traj_tica: np.ndarray, ref_traj_tica: np.ndarray) -> dict[str, np.ndarray]:
     """Compute autocorrelation and decorrelation times for TICA projections of trajectories."""
     mu = ref_traj_tica[:, 0].mean()
     sigma = ref_traj_tica[:, 0].std()
@@ -508,8 +401,8 @@ def compute_flux_matrix(transition_matrix: np.ndarray, pi: np.ndarray) -> np.nda
 def compute_JSD_MSM(
     traj_tica: np.ndarray,
     ref_traj_tica: np.ndarray,
-    MSM_info: Dict[str, Any],
-) -> Dict[str, np.ndarray]:
+    MSM_info: dict[str, Any],
+) -> dict[str, np.ndarray]:
     msm = MSM_info["msm"]
     kmeans = MSM_info["kmeans"]
 
@@ -532,8 +425,8 @@ def compute_JSD_MSM(
 def compute_JSD_MSM_against_time(
     traj_tica: np.ndarray,
     ref_traj_tica: np.ndarray,
-    MSM_info: Dict[str, Any],
-) -> Dict[int, Dict[str, float]]:
+    MSM_info: dict[str, Any],
+) -> dict[int, dict[str, float]]:
     """Compute Jenson-Shannon distances for a trajectory and reference trajectory."""
     steps, progress = get_steps(len(traj_tica))
     return {
@@ -548,8 +441,8 @@ def compute_JSD_MSM_against_time(
 
 def compute_MSM_transition_and_flux_matrices(
     traj_tica: np.ndarray,
-    MSM_info: Dict[str, Any],
-) -> Dict[str, np.ndarray]:
+    MSM_info: dict[str, Any],
+) -> dict[str, np.ndarray]:
     """Compute transition and flux matrices for a trajectory and reference trajectory according to a MSM."""
 
     msm = MSM_info["msm"]
@@ -601,7 +494,7 @@ def compute_MSM_transition_and_flux_matrices(
     }
 
 
-def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> Dict[str, Any]:
+def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> dict[str, Any]:
     """Run analysis on the trajectories and return results dictionary."""
 
     # Featurize trajectories.
@@ -610,7 +503,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
         "traj": featurize_trajectory(traj_md),
         "ref_traj": featurize_trajectory(ref_traj_md),
     }
-    py_logger.info(f"Featurization complete.")
+    py_logger.info("Featurization complete.")
 
     traj_results = results["featurization"]["traj"]
     traj_feats = traj_results["feats"]["torsions"]
@@ -632,7 +525,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
         "traj": compute_feature_histograms(traj_featurized_dict),
         "ref_traj": compute_feature_histograms(ref_traj_featurized_dict),
     }
-    py_logger.info(f"Feature histograms computed.")
+    py_logger.info("Feature histograms computed.")
 
     # We will compare the trajectory as well as the (shortened) reference trajectories.
     trajs_to_compare = {
@@ -647,7 +540,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
     results["PMFs"] = {}
     for key, traj in trajs_to_compare.items():
         results["PMFs"][key] = compute_dihedral_PMFs(traj, feats)
-    py_logger.info(f"PMFs computed.")
+    py_logger.info("PMFs computed.")
 
     # Compute JSDs.
     results["JSD_torsions"] = {}
@@ -657,7 +550,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             ref_traj_featurized,
             feats,
         )
-    py_logger.info(f"JSD of torsion distributions computed.")
+    py_logger.info("JSD of torsion distributions computed.")
 
     # Compute JSDs of torsions against time.
     results["JSD_torsions_against_time"] = {}
@@ -667,7 +560,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             ref_traj_featurized,
             feats,
         )
-    py_logger.info(f"JSD of torsion distributions as a function of time computed.")
+    py_logger.info("JSD of torsion distributions as a function of time computed.")
 
     # Compute torsion decorrelations.
     results["torsion_decorrelations"] = compute_torsion_decorrelations(
@@ -675,14 +568,14 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
         ref_traj_featurized,
         feats,
     )
-    py_logger.info(f"Torsion decorrelations computed.")
+    py_logger.info("Torsion decorrelations computed.")
 
     # TICA analysis.
     results["TICA"] = compute_TICA(
         traj_featurized_cossin,
         ref_traj_featurized_cossin,
     )
-    py_logger.info(f"TICA computed.")
+    py_logger.info("TICA computed.")
 
     traj_tica = results["TICA"]["traj"]
     ref_traj_tica = results["TICA"]["ref_traj"]
@@ -699,7 +592,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
     results["TICA_histograms"] = {}
     for key, tica in traj_ticas_to_compare.items():
         results["TICA_histograms"][key] = compute_TICA_histogram_for_plotting(tica)
-    py_logger.info(f"Histograms of TICA projections computed.")
+    py_logger.info("Histograms of TICA projections computed.")
 
     results["JSD_TICA"] = {}
     for key, tica in traj_ticas_to_compare.items():
@@ -707,7 +600,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             tica,
             ref_traj_tica,
         )
-    py_logger.info(f"JSD of TICA projections computed.")
+    py_logger.info("JSD of TICA projections computed.")
 
     results["JSD_TICA_against_time"] = {}
     for key, tica in traj_ticas_to_compare.items():
@@ -715,14 +608,14 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             tica,
             ref_traj_tica,
         )
-    py_logger.info(f"JSD of TICA projections as a function of time computed.")
+    py_logger.info("JSD of TICA projections as a function of time computed.")
 
     # Compute autocorrelation stats.
     results["TICA_decorrelations"] = compute_TICA_decorrelations(
         traj_tica,
         ref_traj_tica,
     )
-    py_logger.info(f"TICA decorrelations computed.")
+    py_logger.info("TICA decorrelations computed.")
 
     # Compute MSM.
     # Sometimes, this fails because the reference trajectory is too short.
@@ -730,7 +623,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
         MSM_info = get_MSM_after_KMeans(ref_traj_tica)
         results["MSM"] = MSM_info
     except IndexError:
-        py_logger.warning(f"MSM information could not be computed.")
+        py_logger.warning("MSM information could not be computed.")
         return results
 
     results["JSD_MSM"] = {}
@@ -740,7 +633,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             ref_traj_tica,
             MSM_info,
         )
-    py_logger.info(f"JSD of MSM state probabilities computed.")
+    py_logger.info("JSD of MSM state probabilities computed.")
 
     results["JSD_MSM_against_time"] = {}
     for key, tica in traj_ticas_to_compare.items():
@@ -749,7 +642,7 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
             ref_traj_tica,
             MSM_info,
         )
-    py_logger.info(f"JSD of MSM state probabilities as a function of time computed.")
+    py_logger.info("JSD of MSM state probabilities as a function of time computed.")
 
     results["MSM_matrices"] = {}
     for key, tica in traj_ticas_to_compare.items():
@@ -761,12 +654,12 @@ def analyze_trajectories(traj_md: md.Trajectory, ref_traj_md: md.Trajectory) -> 
         except (ValueError, RuntimeError):
             py_logger.warning(f"MSM matrices could not be computed for {key}.")
             continue
-    py_logger.info(f"MSM matrices computed.")
+    py_logger.info("MSM matrices computed.")
 
     return results
 
 
-def save_results(results: Dict[str, Any], args: argparse.Namespace) -> None:
+def save_results(results: dict[str, Any], args: argparse.Namespace) -> None:
     """Save analysis results to pickle file."""
 
     # Delete intermediate results, to reduce memory usage.
@@ -870,14 +763,14 @@ if __name__ == "__main__":
         py_logger.info(f"Shortened trajectory to {len(traj)} frames.")
 
     # Run analysis.
-    results = analyze_trajectories_sdf(traj, sdf_file_path)
+    results = analyze_trajectories(traj, ref_traj)
 
     # Add trajectory info to results.
     results["info"] = {
         "traj": traj_info,
         "ref_traj": ref_traj_info,
     }
-    py_logger.info(f"Analysis complete.")
+    py_logger.info("Analysis complete.")
 
     # Save results.
     save_results(results, args)

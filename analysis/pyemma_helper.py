@@ -1,9 +1,8 @@
-from typing import Dict
-import numpy as np
-import matplotlib.pyplot as plt
 from warnings import warn
 
-from pyemma.plots.plots2d import get_histogram, plot_map, _to_free_energy
+import matplotlib.pyplot as plt
+import numpy as np
+from pyemma.plots.plots2d import _to_free_energy, get_histogram, plot_map
 
 
 def compute_2D_histogram(xall: np.ndarray, yall: np.ndarray, weights=None, nbins=100, avoid_zero_count=False):
@@ -11,7 +10,7 @@ def compute_2D_histogram(xall: np.ndarray, yall: np.ndarray, weights=None, nbins
     return get_histogram(xall, yall, nbins=nbins, weights=weights, avoid_zero_count=avoid_zero_count)
 
 
-def compute_1D_histogram(xyzall: np.ndarray, n_bins: int = 50) -> Dict[str, np.ndarray]:
+def compute_1D_histogram(xyzall: np.ndarray, n_bins: int = 50) -> dict[str, np.ndarray]:
     """Compute a 1D histogram from scattered data."""
     all_hists = []
     all_edges = []
@@ -167,6 +166,7 @@ def plot_free_energy(
         warn(
             "Legacy mode is deprecated is will be removed in the next major release. Until then use legacy=False",
             DeprecationWarning,
+            stacklevel=2,
         )
         if vmin is None:
             vmin = 0.0

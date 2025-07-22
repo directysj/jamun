@@ -1,8 +1,9 @@
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
 import subprocess
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 import dotenv
 import mdtraj as md
@@ -33,7 +34,7 @@ def get_peptides_in_JAMUN_run(run_path: str) -> Sequence[str]:
     return peptides_in_run
 
 
-def search_for_JAMUN_files(root_path: str) -> List[str]:
+def search_for_JAMUN_files(root_path: str) -> list[str]:
     """Heuristically finds JAMUN output files in a given directory."""
 
     output_dir = os.path.join(root_path, "outputs")
@@ -68,7 +69,7 @@ def get_sampling_rate(name: str, peptide: str, experiment: str) -> float:
         return seconds_per_10_samples / 10
 
 
-def get_JAMUN_trajectory_files(run_paths: Sequence[str]) -> Dict[str, Dict[str, str]]:
+def get_JAMUN_trajectory_files(run_paths: Sequence[str]) -> dict[str, dict[str, str]]:
     """Returns a dictionary mapping peptide names to the path of the PDB file containing the predicted structure."""
 
     trajectory_files = {}
@@ -110,8 +111,8 @@ def get_JAMUN_trajectory_files(run_paths: Sequence[str]) -> Dict[str, Dict[str, 
 
 
 def get_JAMUN_trajectories(
-    run_paths: Sequence[str], filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, Tuple[md.Trajectory, Dict[str, Any]]]:
+    run_paths: Sequence[str], filter_codes: Sequence[str] | None = None
+) -> dict[str, tuple[md.Trajectory, dict[str, Any]]]:
     """Returns a dictionary mapping peptide names to the sampled JAMUN trajectory."""
     trajectory_files = get_JAMUN_trajectory_files(run_paths)
     trajectory_info = {}
@@ -132,8 +133,8 @@ def get_JAMUN_trajectories(
 
 
 def get_MDGenReference_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all"
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all"
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the MDGen reference trajectory."""
 
     def get_datasets_for_split(split: str):
@@ -157,8 +158,8 @@ def get_MDGenReference_datasets(
 
 
 def get_TimewarpReference_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all", peptide_type: str = "all"
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all", peptide_type: str = "all"
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the Timewarp reference trajectory."""
     if peptide_type == "2AA":
         return get_TimewarpReference_2AA_datasets(data_path, filter_codes=filter_codes, split=split)
@@ -169,8 +170,8 @@ def get_TimewarpReference_datasets(
 
 
 def get_TimewarpReference_2AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all"
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all"
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to our reference 2AA MDTraj trajectory."""
     # Timewarp trajectory files are in one-letter format.
     if filter_codes is None:
@@ -208,8 +209,8 @@ def get_TimewarpReference_2AA_datasets(
 
 
 def get_TimewarpReference_4AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all"
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all"
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to our reference 4AA MDTraj trajectory."""
     # Timewarp trajectory files are in one-letter format.
     if filter_codes is None:
@@ -247,8 +248,8 @@ def get_TimewarpReference_4AA_datasets(
 
 
 def get_JAMUNReference_2AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all"
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all"
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to our reference 2AA MDTraj trajectory."""
 
     def get_datasets_for_split(split: str):
@@ -271,8 +272,8 @@ def get_JAMUNReference_2AA_datasets(
 
 
 def get_JAMUNReference_5AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to our reference 5AA MDTraj trajectories."""
     prefix = ""
 
@@ -309,16 +310,16 @@ def get_JAMUNReference_5AA_datasets(
 
 
 def get_CrempReference_trajectories(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None, split: str = "all"
-) -> Dict[str, md.Trajectory]:
+    data_path: str, filter_codes: Sequence[str] | None = None, split: str = "all"
+) -> dict[str, md.Trajectory]:
     """Returns a dictionary mapping peptide names to our reference Cremp sdf trajectory."""
 
     def get_datasets_for_split(split: str):
         """Helper function to get datasets for a given split."""
         return data.parse_datasets_from_directory_new(
             root=f"{data_path}",
-            traj_pattern= "^(.*).npz",
-            topology_pattern= "^(.*).sdf",
+            traj_pattern="^(.*).npz",
+            topology_pattern="^(.*).sdf",
             as_sdf=True,
             filter_codes=filter_codes,
         )
@@ -333,9 +334,7 @@ def get_CrempReference_trajectories(
     return {dataset.label(): dataset.trajectory for dataset in datasets}
 
 
-def get_TBGSamples_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+def get_TBGSamples_datasets(data_path: str, filter_codes: Sequence[str] | None = None) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the datasets of TBG samples."""
     datasets = data.parse_datasets_from_directory(
         root=f"{data_path}/tbg-samples/",
@@ -347,8 +346,8 @@ def get_TBGSamples_datasets(
 
 
 def get_MDGenSamples_4AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the datasets of MDGen samples for 4AA systems."""
     datasets = data.parse_datasets_from_directory(
         root=f"{data_path}/mdgen-samples/4AA_test",
@@ -360,8 +359,8 @@ def get_MDGenSamples_4AA_datasets(
 
 
 def get_MDGenSamples_5AA_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the datasets of MDGen samples for 5AA systems."""
     datasets = data.parse_datasets_from_directory(
         root=f"{data_path}/mdgen-samples/5AA_test",
@@ -373,8 +372,8 @@ def get_MDGenSamples_5AA_datasets(
 
 
 def get_BoltzSamples_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the datasets of Boltz-1 samples."""
     datasets = data.parse_datasets_from_directory(
         root=f"{data_path}/boltz-preprocessed/",
@@ -386,9 +385,10 @@ def get_BoltzSamples_datasets(
 
 
 def get_BioEmuSamples_datasets(
-    data_path: str, filter_codes: Optional[Sequence[str]] = None
-) -> Dict[str, data.MDtrajDataset]:
+    data_path: str, filter_codes: Sequence[str] | None = None
+) -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to the datasets of BioEmu samples."""
+
     def add_suffix(label: str) -> str:
         """Adds the suffix to the label."""
         if "_sidechain_rec" not in label:
@@ -414,7 +414,7 @@ def get_BioEmuSamples_datasets(
     return dict(zip(labels, datasets))
 
 
-def get_ChignolinReference_dataset(data_path: str, split: str = "all") -> Dict[str, data.MDtrajDataset]:
+def get_ChignolinReference_dataset(data_path: str, split: str = "all") -> dict[str, data.MDtrajDataset]:
     """Returns a dictionary mapping peptide names to our reference 2AA MDTraj trajectory."""
 
     root = Path(data_path) / "fast-folding/processed/chignolin"
@@ -432,7 +432,7 @@ def get_ChignolinReference_dataset(data_path: str, split: str = "all") -> Dict[s
     return {"filtered": dataset}
 
 
-def get_plot_path(plot_path: Optional[str] = None):
+def get_plot_path(plot_path: str | None = None):
     """Returns the default plot path if none provided."""
     if plot_path:
         return plot_path
@@ -449,7 +449,7 @@ def get_plot_path(plot_path: Optional[str] = None):
     raise ValueError("plot_path must be provided as JAMUN_PLOT_PATH in environment variable or .env file")
 
 
-def get_analysis_path(analysis_path: Optional[str] = None):
+def get_analysis_path(analysis_path: str | None = None):
     """Returns the default analysis path if none provided."""
     if analysis_path:
         return analysis_path
@@ -466,7 +466,7 @@ def get_analysis_path(analysis_path: Optional[str] = None):
     raise ValueError("analysis_path must be provided as JAMUN_ANALYSIS_PATH in environment variable or .env file")
 
 
-def get_data_path(data_path: Optional[str] = None):
+def get_data_path(data_path: str | None = None):
     """Returns the default data path if none provided."""
     if data_path:
         return data_path
@@ -485,11 +485,11 @@ def get_data_path(data_path: Optional[str] = None):
 
 def load_all_trajectories_with_info(
     trajectory_name: str,
-    data_path: Optional[str],
-    run_path: Optional[str] = None,
-    wandb_run: Optional[str] = None,
-    filter_codes: Optional[Sequence[str]] = None,
-) -> Dict[str, Tuple[md.Trajectory, Dict[str, Any]]]:
+    data_path: str | None,
+    run_path: str | None = None,
+    wandb_run: str | None = None,
+    filter_codes: Sequence[str] | None = None,
+) -> dict[str, tuple[md.Trajectory, dict[str, Any]]]:
     """Returns all trajectories, trajectory files, and topology file for this model."""
     data_path = get_data_path(data_path)
     py_logger.info(f"Using data_path: {data_path}")
@@ -562,7 +562,10 @@ def load_all_trajectories_with_info(
         )
 
     return {
-        key: (dataset.trajectory, {"trajectory_files": dataset.trajectory_files, "topology_file": dataset.topology_file})
+        key: (
+            dataset.trajectory,
+            {"trajectory_files": dataset.trajectory_files, "topology_file": dataset.topology_file},
+        )
         for key, dataset in datasets.items()
     }
 
@@ -570,10 +573,10 @@ def load_all_trajectories_with_info(
 def load_trajectory_with_info(
     trajectory_name: str,
     peptide: str,
-    data_path: Optional[str],
-    run_path: Optional[str] = None,
-    wandb_run: Optional[str] = None,
-) -> Tuple[md.Trajectory, Dict[str, Any]]:
+    data_path: str | None,
+    run_path: str | None = None,
+    wandb_run: str | None = None,
+) -> tuple[md.Trajectory, dict[str, Any]]:
     """Returns the trajectory, trajectory files, and topology file for this model and peptide."""
     return load_all_trajectories_with_info(
         trajectory_name=trajectory_name,

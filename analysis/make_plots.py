@@ -1,25 +1,25 @@
-from typing import Dict, Optional, Any, Tuple
-import os
-import pickle
 import argparse
 import logging
-
-import numpy as np
-import scipy.stats
-import pandas as pd
-import matplotlib.pyplot as plt
-import lovelyplots
-import matplotlib as mpl
-import matplotlib.colors
-
-from jamun import utils
+import os
+import pickle
 
 # TODO: Fix imports.
 import sys
+from typing import Any
+
+import matplotlib as mpl
+import matplotlib.colors
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.stats
+
+from jamun import utils
+
 sys.path.append("./")
 
-import pyemma_helper
 import load_trajectory
+import pyemma_helper
 
 mpl.rcParams["axes.formatter.useoffset"] = False
 mpl.rcParams["axes.formatter.limits"] = (-10000, 10000)  # Controls range before scientific notation is used
@@ -165,25 +165,25 @@ def format_peptide_name(peptide: str) -> str:
     return utils.convert_to_one_letter_codes(peptide)
 
 
-def plot_ramachandran_contour(results: Dict[str, Any], dihedral_index: int, ax: Optional[plt.Axes] = None) -> plt.Axes:
+def plot_ramachandran_contour(results: dict[str, Any], dihedral_index: int, ax: plt.Axes | None = None) -> plt.Axes:
     """Plots the Ramachandran contour plot of a trajectory."""
 
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
 
     pmf, xedges, yedges = results["pmf"], results["xedges"], results["yedges"]
-    im = ax.contourf(xedges[:-1], yedges[:-1], pmf[dihedral_index], cmap="viridis", levels=50)
-    contour = ax.contour(
+    ax.contourf(xedges[:-1], yedges[:-1], pmf[dihedral_index], cmap="viridis", levels=50)
+    ax.contour(
         xedges[:-1], yedges[:-1], pmf[dihedral_index], colors="white", linestyles="solid", levels=10, linewidths=0.25
     )
 
     ax.set_aspect("equal", adjustable="box")
-    ax.set_xlabel("$\phi$")
-    ax.set_ylabel("$\psi$")
+    ax.set_xlabel(r"$\phi$")
+    ax.set_ylabel(r"$\psi$")
 
     tick_eps = 0.1
     ticks = [-np.pi + tick_eps, -np.pi / 2, 0, np.pi / 2, np.pi - tick_eps]
-    tick_labels = ["$-\pi$", "$-\pi/2$", "$0$", "$\pi/2$", "$\pi$"]
+    tick_labels = [r"$-\pi$", r"$-\pi/2$", "$0$", r"$\pi/2$", r"$\pi$"]
     ax.set_xticks(ticks, tick_labels)
     ax.set_yticks(ticks, tick_labels)
     return ax
@@ -490,7 +490,7 @@ def plot_ramachandran_against_reference_shortened(results_df: pd.DataFrame) -> N
     plt.subplots_adjust(hspace=0.08, wspace=0.04)
 
 
-def plot_ramachandran_against_all_trajectories(results_df: pd.DataFrame, peptide: str) -> None:
+def plot_ramachandran_for_single_system_against_all_trajectories(results_df: pd.DataFrame, peptide: str) -> None:
     """Plots Ramachandran contours for a single peptide against all trajectories."""
     pmf_type = "all"
     experiment = results_df.attrs["experiment"]
@@ -505,7 +505,9 @@ def plot_ramachandran_against_all_trajectories(results_df: pd.DataFrame, peptide
         if traj not in ["ref_traj", "ref_traj_10x", "ref_traj_100x", "ref_traj_1000x", "TBG_200x"]
     ]
 
-    fig, axs = plt.subplots(len(traj_names), num_dihedrals, figsize=(max(3 * num_dihedrals, 12), 8), squeeze=False)
+    fig, axs = plt.subplots(
+        len(traj_names), num_dihedrals, figsize=(2 * num_dihedrals, 2 * len(traj_names)), squeeze=False
+    )
     for j in range(num_dihedrals):
         for k, traj in enumerate(traj_names):
             plot_ramachandran_contour(row["results"]["PMFs"][traj][f"pmf_{pmf_type}"], j, axs[k, j])
@@ -531,15 +533,9 @@ def plot_ramachandran_against_all_trajectories(results_df: pd.DataFrame, peptide
             horizontalalignment="center",
             transform=axs[i, -1].transAxes,
         )
-    axs[0, num_dihedrals // 2].text(
-        0.5, 1.2,
-        format_peptide_name(peptide),
-        transform=axs[0, num_dihedrals // 2].transAxes,
-        verticalalignment="center",
-        horizontalalignment="center",
-        fontsize=plt.rcParams['figure.titlesize']
-    )
-    plt.subplots_adjust(hspace=0.08, wspace=0.04)
+    fig.suptitle(format_peptide_name(peptide), fontsize=plt.rcParams["figure.titlesize"])
+    # plt.subplots_adjust(hspace=0.08, wspace=0.01)
+    plt.tight_layout()
 
 
 def plot_torsion_histograms(results_df) -> None:
@@ -628,7 +624,9 @@ def plot_distance_histograms(results_df) -> None:
     plt.tight_layout()
 
 
-def collect_torsion_angle_decorrelation_times(results_df: pd.DataFrame) -> Tuple[Dict[str, Dict[str, np.ndarray]], Dict[str, int]]:
+def collect_torsion_angle_decorrelation_times(
+    results_df: pd.DataFrame,
+) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, int]]:
     """Collects the torsion angle decorrelation times from the results DataFrame."""
 
     torsion_decorrelation_times = {
@@ -667,7 +665,7 @@ def collect_torsion_angle_decorrelation_times(results_df: pd.DataFrame) -> Tuple
 
 
 def plot_backbone_decorrelation_times(
-    results_df: pd.DataFrame, torsion_decorrelation_times: Dict[str, Dict[str, np.ndarray]]
+    results_df: pd.DataFrame, torsion_decorrelation_times: dict[str, dict[str, np.ndarray]]
 ) -> None:
     # Scatter plot of probabilities.
     format_traj_name_fn = get_format_traj_name_fn(results_df)
@@ -724,7 +722,7 @@ def plot_backbone_decorrelation_speedups(torsion_decorrelation_times):
 
 
 def plot_sidechain_decorrelation_times(
-    results_df, torsion_decorrelation_times: Dict[str, Dict[str, np.ndarray]]
+    results_df, torsion_decorrelation_times: dict[str, dict[str, np.ndarray]]
 ) -> None:
     # Scatter plot of probabilities.
     format_traj_name_fn = get_format_traj_name_fn(results_df)
@@ -864,27 +862,39 @@ def plot_TICA_histograms(results_df: pd.DataFrame):
 
     traj_names = ["ref_traj", "traj"]
     traj_names.extend(results_df.attrs.get("extra_traj_names", []))
+    traj_names = [name for name in traj_names if name not in ["TBG_200x"]]
+    extra_pad = any("\n" in format_traj_name_fn(name) for name in traj_names)
 
-    fig, axs = plt.subplots(nrows=len(results_df), ncols=len(traj_names), figsize=(6 * len(traj_names), 3.5 * len(results_df)), squeeze=False)
+    fig, axs = plt.subplots(
+        nrows=len(results_df),
+        ncols=len(traj_names),
+        figsize=(6 * len(traj_names), 3.5 * len(results_df)),
+        squeeze=False,
+    )
     for i, row in results_df.iterrows():
         peptide = row["peptide"]
         results = row["results"]["TICA_histograms"]
 
         for j, traj in enumerate(traj_names):
             pyemma_helper.plot_free_energy(
-                *results[traj], cmap="plasma", ax=axs[i, j]
+                *results[traj],
+                cmap="plasma",
+                ax=axs[i, j],
+                cbar_label=None if j < len(traj_names) - 1 else "free energy / kT",
             )
-
             axs[i, j].ticklabel_format(useOffset=False, style="plain")
             axs[i, j].set_xlim(axs[i, 0].get_xlim())
             axs[i, j].set_ylim(axs[i, 0].get_ylim())
 
         if i == 0:
             for j, traj in enumerate(traj_names):
-                axs[i, j].set_title(format_traj_name_fn(traj), fontsize=28)
+                if extra_pad:
+                    axs[i, j].set_title(format_traj_name_fn(traj), fontsize=28, verticalalignment="top", y=1.35, pad=10)
+                else:
+                    axs[i, j].set_title(format_traj_name_fn(traj), fontsize=28)
 
         axs[i, -1].text(
-            1.4,
+            1.5,
             0.5,
             format_peptide_name(peptide),
             rotation=90,
@@ -895,7 +905,7 @@ def plot_TICA_histograms(results_df: pd.DataFrame):
         )
 
     # plt.suptitle("TICA-0,1 Projections", fontsize="x-large")
-    plt.tight_layout()
+    # plt.tight_layout()
 
 
 def collect_TICA_0_speedups(results_df: pd.DataFrame) -> np.ndarray:
@@ -953,9 +963,7 @@ def plot_JSD_table(results_df: pd.DataFrame, JSD_table: pd.DataFrame) -> None:
         metric_name = mean_col.replace("_mean", "").replace("JSD_", "")
 
         # Create bar plot
-        bars = axes[i].bar(
-            range(len(traj_names)), JSD_table[mean_col], yerr=JSD_table[std_col], capsize=5, color=colors_list
-        )
+        axes[i].bar(range(len(traj_names)), JSD_table[mean_col], yerr=JSD_table[std_col], capsize=5, color=colors_list)
 
         # Set x-axis labels and rotate them
         axes[i].set_xticks(range(len(traj_names)))
@@ -992,7 +1000,7 @@ def plot_TICA_0_speedups(results_df: pd.DataFrame) -> None:
     plt.tight_layout()
 
 
-def collect_metastable_probs(results_df: pd.DataFrame) -> Dict[str, np.ndarray]:
+def collect_metastable_probs(results_df: pd.DataFrame) -> dict[str, np.ndarray]:
     """Collects the metastable probabilities from the results DataFrame."""
     metastable_probs = {
         "ref_traj": [],
@@ -1139,7 +1147,7 @@ def get_flux_matrix_correlations(results_df: pd.DataFrame):
     return np.asarray(correlations)
 
 
-def add_recursively(dict1: Dict[str, Any], dict2: Dict[str, Any], new_key_name: str) -> None:
+def add_recursively(dict1: dict[str, Any], dict2: dict[str, Any], new_key_name: str) -> None:
     """Recursively adds a key "traj" from dict2 to dict1 with the specified new_key_name."""
     if not isinstance(dict1, dict) or not isinstance(dict2, dict):
         return
@@ -1175,7 +1183,7 @@ def add_extra_trajectories(
             "JAMUN_0.2A": load_results(results_dir, "Timewarp_4AA_0.2A", "JAMUN", ref_traj_name),
             "JAMUN_0.8A": load_results(results_dir, "Timewarp_4AA_0.8A", "JAMUN", ref_traj_name),
         }
-        results_df.attrs["traj_name"] = "JAMUN\n"+ r"($\sigma=0.4\AA$)"
+        results_df.attrs["traj_name"] = "JAMUN\n" + r"($\sigma=0.4\AA$)"
         results_df.attrs["compare_JSD_against_reference"] = False
 
     if experiment == "MDGen_4AA" and traj_name == "JAMUN":
@@ -1225,7 +1233,7 @@ def make_plots(experiment: str, traj_name: str, ref_traj_name: str, results_dir:
     os.makedirs(output_dir, exist_ok=True)
 
     # Save logs.
-    file_handler = logging.FileHandler(os.path.join(output_dir, f"output.log"))
+    file_handler = logging.FileHandler(os.path.join(output_dir, "output.log"))
     py_logger.addHandler(file_handler)
     py_logger.info(f"Plots will be saved to {output_dir}")
 
@@ -1260,7 +1268,7 @@ def make_plots(experiment: str, traj_name: str, ref_traj_name: str, results_dir:
 
     # Ramachandran Plots for a Single Peptide
     for peptide in sampled_results_df["peptide"]:
-        plot_ramachandran_against_all_trajectories(sampled_results_df, peptide)
+        plot_ramachandran_for_single_system_against_all_trajectories(sampled_results_df, peptide)
         plt.savefig(os.path.join(output_dir, f"ramachandran_contours_{format_peptide_name(peptide)}.pdf"), dpi=300)
         plt.close()
 

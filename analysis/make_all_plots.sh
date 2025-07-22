@@ -2,7 +2,7 @@
 
 # source ../.env
 
-export JAMUN_PLOT_PATH=plots
+export JAMUN_PLOT_PATH=/homefs/home/daigavaa/jamun/685c3bb56edcd3736f0949f8/figures/results
 
 python make_plots.py --experiment Cremp_4AA_5AA --plot-dir ${JAMUN_PLOT_PATH} --trajectory JAMUN
 python make_plots.py --experiment Cremp_4AA_long_train --plot-dir ${JAMUN_PLOT_PATH} --trajectory JAMUN
