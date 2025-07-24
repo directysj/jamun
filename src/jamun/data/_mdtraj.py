@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 from collections.abc import Callable, Sequence
 
@@ -23,7 +24,8 @@ def make_graph_from_topology(
     residue_sequence_index = torch.tensor([x.residue.index for x in topology.atoms], dtype=torch.int32)
     atom_code_index = torch.tensor([utils.encode_atom_code(x.name) for x in topology.atoms], dtype=torch.int32)
 
-    bonds = torch.tensor([[bond[0].index, bond[1].index] for bond in topology.bonds], dtype=torch.long).T
+    # Get the bonded edges from the topology.
+    bonded_edge_index = torch.tensor([[bond[0].index, bond[1].index] for bond in topology.bonds], dtype=torch.long).T
 
     # Create the graph.
     # Positions will be updated later.
@@ -34,7 +36,7 @@ def make_graph_from_topology(
         atom_code_index=atom_code_index,
         residue_index=residue_sequence_index,
         num_residues=residue_sequence_index.max().item() + 1,
-        bonded_edge_index=bonds,
+        bonded_edge_index=bonded_edge_index,
         pos=None,
     )
     graph.residues = [x.residue.name for x in topology.atoms]
@@ -204,6 +206,19 @@ class MDtrajDataset(torch.utils.data.Dataset):
         # Subsample the trajectory.
         self.traj = self.traj[start_frame : start_frame + num_frames : subsample]
         topology = self.traj.topology
+
+        # If there are no bonds, and the number of residues is equal to the number of atoms,
+        # then, this is likely a coarse-grained model where each residue is a bead.
+        # In this case, we create bonds between consecutive residues.
+        if topology.n_bonds == 0 and topology.n_residues == topology.n_atoms:
+            atom_indices = [atom.index for atom in topology.atoms]
+            for i in range(len(atom_indices) - 1):
+                topology.add_bond(topology.atom(atom_indices[i]), topology.atom(atom_indices[i + 1]))
+
+            py_logger = logging.getLogger("jamun")
+            py_logger.warning(
+                f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
+            )
 
         self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
         self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)

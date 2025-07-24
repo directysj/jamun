@@ -64,6 +64,9 @@ def add_edges(
     with torch.cuda.nvtx.range("radial_graph"):
         radial_edge_index = e3tools.radius_graph(y, radial_cutoff, batch)
 
+    # print(f"Number of radial edges: {radial_edge_index.shape[1]}")
+    # print(f"Number of bonded edges: {topology.bonded_edge_index.shape[1]}")
+
     with torch.cuda.nvtx.range("concatenate_edges"):
         edge_index = torch.cat((radial_edge_index, topology.bonded_edge_index), dim=-1)
         if topology.bonded_edge_index.numel() == 0:
@@ -443,7 +446,7 @@ class Denoiser(pl.LightningModule):
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
             R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
-            x = torch.einsum("ni,ji->nj", x, R)
+            x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training

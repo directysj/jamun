@@ -29,7 +29,7 @@ class E3Conv(torch.nn.Module):
         residue_code_embedding_dim: int,
         residue_index_embedding_dim: int,
         use_residue_sequence_index: bool,
-        max_radius: float,
+        max_radius: float = 1.0,  # Default for backward compatibility.
         num_atom_types: int = 20,
         max_sequence_length: int = 10,
         num_atom_codes: int = 10,

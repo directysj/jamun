@@ -436,7 +436,7 @@ class EnergyModel(pl.LightningModule):
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
             R = e3nn.o3.rand_matrix(device=self.device, dtype=x.dtype)
-            x = torch.einsum("ni,ji->nj", x, R)
+            x = torch.einsum("ni,ij->nj", x, R.T)
 
         loss, aux = self.noise_and_compute_loss(
             x, topology, batch, num_graphs, sigma, align_noisy_input=self.align_noisy_input_during_training
