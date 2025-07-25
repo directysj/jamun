@@ -78,6 +78,7 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
         start_at_random_frame: bool = False,
         verbose: bool = False,
         keep_hydrogens: bool = False,
+        coarse_grained: bool = False,
     ):
         self.root = root
         self._label = label
@@ -94,6 +95,17 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
 
         pdb_file = os.path.join(self.root, pdb_file)
         topology = md.load_topology(pdb_file)
+
+        if coarse_grained:
+            # In the coarse-grained case, we create bonds between consecutive residues.
+            atom_indices = [atom.index for atom in topology.atoms]
+            for i in range(len(atom_indices) - 1):
+                topology.add_bond(topology.atom(atom_indices[i]), topology.atom(atom_indices[i + 1]))
+
+            py_logger = logging.getLogger("jamun")
+            py_logger.warning(
+                f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
+            )
 
         self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
         self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)
@@ -170,6 +182,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
         loss_weight: float = 1.0,
         verbose: bool = False,
         keep_hydrogens: bool = False,
+        coarse_grained: bool = False,
     ):
         self.root = root
         self._label = label
@@ -207,10 +220,8 @@ class MDtrajDataset(torch.utils.data.Dataset):
         self.traj = self.traj[start_frame : start_frame + num_frames : subsample]
         topology = self.traj.topology
 
-        # If there are no bonds, and the number of residues is equal to the number of atoms,
-        # then, this is likely a coarse-grained model where each residue is a bead.
-        # In this case, we create bonds between consecutive residues.
-        if topology.n_bonds == 0 and topology.n_residues == topology.n_atoms:
+        if coarse_grained:
+            # In the coarse-grained case, we create bonds between consecutive residues.
             atom_indices = [atom.index for atom in topology.atoms]
             for i in range(len(atom_indices) - 1):
                 topology.add_bond(topology.atom(atom_indices[i]), topology.atom(atom_indices[i + 1]))

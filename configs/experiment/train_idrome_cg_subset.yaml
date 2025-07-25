@@ -9,7 +9,7 @@ model:
   sigma_distribution:
     _target_: jamun.distributions.ConstantSigma
     sigma: 0.2
-  max_radius: 2.0
+  max_radius: 1.5
   optim:
     lr: 0.002
   use_torch_compile: true
@@ -20,42 +20,44 @@ callbacks:
 
 data:
   datamodule:
-    num_workers: 2
-    batch_size: 16
+    num_workers: 1
+    batch_size: 10
     datasets:
       train:
         _target_: jamun.data.parse_datasets_from_directory_new
-        root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
+        root: "/homefs/home/daigavaa/IDRome_v4_subset/"
         traj_pattern: "^(.*)/traj.xtc"
         topology_pattern: "^(.*)/top.pdb"
-        filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/train.csv"
-        filter_codes_csv_header: "code"
-        # filter_codes:
+        coarse_grained: true
+        filter_codes:
+          - Q0_47_21_1_1496 # length 1496
+          # - P1_00_70_584_1586 # length 1003
           # - Q9_C0_H5_101_700 # length 600
           # - P6_05_07_185_584 # length 400
+        # filter_codes_csv: "/homefs/home/daigavaa/IDRome_v4_subset/train.csv"
+        # filter_codes_csv_header: "code"
+
 
       val:
         _target_: jamun.data.parse_datasets_from_directory_new
-        root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
+        root: "/homefs/home/daigavaa/IDRome_v4_subset/"
         traj_pattern: "^(.*)/traj.xtc"
         topology_pattern: "^(.*)/top.pdb"
-        subsample: 100
-        filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/val.csv"
-        filter_codes_csv_header: "code"
-        max_datasets: 10
         coarse_grained: true
+        subsample: 100
+        filter_codes:
+          - Q0_47_21_1_1496
 
 
       test:
         _target_: jamun.data.parse_datasets_from_directory_new
-        root: "${paths.data_path}/IDRome_v4_preprocessed/flat/"
+        root: "/homefs/home/daigavaa/IDRome_v4_subset/"
         traj_pattern: "^(.*)/traj.xtc"
         topology_pattern: "^(.*)/top.pdb"
         subsample: 100
-        filter_codes_csv: "${paths.data_path}/IDRome_v4_preprocessed/flat/test.csv"
-        filter_codes_csv_header: "code"
-        max_datasets: 10
-        coarse_grained: true
+        filter_codes:
+          - A0_A1_W2_PPF3_72_112
+
 
 trainer:
   val_check_interval: 0.1

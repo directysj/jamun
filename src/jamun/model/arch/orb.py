@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 from orb_models.forcefield.angular import SphericalHarmonics
 from orb_models.forcefield.base import AtomGraphs
@@ -5,7 +7,6 @@ from orb_models.forcefield.rbf import BesselBasis
 
 # from orb_models.forcefield.gns import MoleculeGNS
 from jamun.model.arch.orb_gns import MoleculeGNS
-from jamun.model.atom_embedding import AtomEmbeddingWithResidueInformation, SimpleAtomEmbedding
 
 
 class MoleculeGNSWrapper(torch.nn.Module):
@@ -23,41 +24,14 @@ class MoleculeGNSWrapper(torch.nn.Module):
         sh_lmax: int,
         max_radius: float,
         bessel_num_bases: int,
-        use_residue_information: bool,
-        atom_type_embedding_dim: int,
-        atom_code_embedding_dim: int,
-        residue_code_embedding_dim: int,
-        residue_index_embedding_dim: int,
-        bonded_edge_attr_dim: int,
-        num_atom_types: int = 20,
-        num_atom_codes: int = 10,
-        num_residue_types: int = 25,
+        atom_embedder_factory: Callable[..., torch.nn.Module],
+        bond_edge_embedder_factory: Callable[..., torch.nn.Module],
         use_torch_compile: bool = True,
     ):
         super().__init__()
 
-        if use_residue_information:
-            self.atom_embedder = AtomEmbeddingWithResidueInformation(
-                atom_type_embedding_dim=atom_type_embedding_dim,
-                atom_code_embedding_dim=atom_code_embedding_dim,
-                residue_code_embedding_dim=residue_code_embedding_dim,
-                residue_index_embedding_dim=residue_index_embedding_dim,
-                use_residue_sequence_index=False,
-                num_atom_types=num_atom_types,
-                max_sequence_length=1,
-                num_atom_codes=num_atom_codes,
-                num_residue_types=num_residue_types,
-            )
-        else:
-            self.atom_embedder = SimpleAtomEmbedding(
-                embedding_dim=atom_type_embedding_dim
-                + atom_code_embedding_dim
-                + residue_code_embedding_dim
-                + residue_index_embedding_dim,
-                max_value=num_atom_types,
-            )
-
-        self.bond_edge_embedder = torch.nn.Embedding(2, bonded_edge_attr_dim)
+        self.atom_embedder = atom_embedder_factory()
+        self.bond_edge_embedder = bond_edge_embedder_factory()
 
         self.gns = MoleculeGNS(
             latent_dim=latent_dim,
@@ -80,10 +54,10 @@ class MoleculeGNSWrapper(torch.nn.Module):
                 "distance_cutoff": True,
                 "attention_gate": "sigmoid",
             },
-            edge_feature_names=["bond_mask_embedding"],
+            edge_feature_names=["bond_edge_embedding"],
             extra_embed_dims=(
                 self.atom_embedder.irreps_out.dim - 118,
-                bonded_edge_attr_dim,
+                self.bond_edge_embedder.irreps_out.dim,
             ),
             activation=activation,
             mlp_norm="rms_norm",
@@ -93,13 +67,8 @@ class MoleculeGNSWrapper(torch.nn.Module):
             self.gns.compile(fullgraph=True, dynamic=True)
 
     def update_features(self, pos: torch.Tensor, topology: AtomGraphs, c_in: torch.Tensor) -> AtomGraphs:
-        atomic_numbers_embedding = self.atom_embedder(
-            topology.node_features["atom_type_index"],
-            topology.node_features["atom_code_index"],
-            topology.node_features["residue_code_index"],
-            topology.node_features["residue_sequence_index"],
-        )
-        bond_mask_embedding = self.bond_edge_embedder(topology.edge_features["bond_mask"].long())
+        atomic_numbers_embedding = self.atom_embedder(topology)
+        bond_edge_embedding = self.bond_edge_embedder(topology)
         unscaled_pos = pos / c_in
         vectors = unscaled_pos[topology.senders] - unscaled_pos[topology.receivers]
 
@@ -112,7 +81,7 @@ class MoleculeGNSWrapper(torch.nn.Module):
             edge_features={
                 **topology.edge_features,
                 "vectors": vectors,
-                "bond_mask_embedding": bond_mask_embedding,
+                "bond_edge_embedding": bond_edge_embedding,
             },
         )
         return topology

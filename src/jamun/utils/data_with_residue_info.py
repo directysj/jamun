@@ -14,7 +14,7 @@ class DataWithResidueInformation(torch_geometric.data.Data):
     num_residues: int
     loss_weight: float
 
-    def __inc__(self, key, value, *args, **kwargs):
+    def __inc__(self, key: str, value: float | torch.Tensor, *args, **kwargs) -> int:
         del value, args, kwargs
         if key in [
             "pos",
