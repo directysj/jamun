@@ -57,8 +57,8 @@ def compute_average_squared_distance_from_datasets(
             avg_sq_dists[graph.dataset_label].append(avg_sq_dist)
             num_graphs += 1
 
-        if num_graphs >= num_estimation_graphs_per_dataset:
-            break
+            if num_graphs >= num_estimation_graphs_per_dataset:
+                break
 
     mean_avg_sq_dist = sum(np.sum(avg_sq_dists[label]) for label in avg_sq_dists) / num_graphs
     utils.dist_log(f"Mean average squared distance = {mean_avg_sq_dist:0.3f} nm^2")
