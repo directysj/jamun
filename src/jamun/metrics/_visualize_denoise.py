@@ -14,6 +14,7 @@ from jamun import utils
 from jamun.data import MDtrajDataset
 from jamun.metrics._ramachandran import plot_ramachandran
 from jamun.metrics._utils import validate_sample
+from jamun.model.utils import compute_rmsd_metrics
 
 
 def plot_ramachandran_grid(trajs: dict[str, md.Trajectory], dataset_label: str):
@@ -104,25 +105,28 @@ class VisualizeDenoiseMetrics(torchmetrics.Metric):
         trajectories = self.coordinates_to_trajectories()
 
         # Compute the scaled RMSD for each sigma
-        scaled_rmsd_per_sigma = {}
+        rmsd_metrics = {}
         for sigma in self.sigma_list:
             xhat = dim_zero_cat(getattr(self, f"coordinates_{sigma}_xhat"))
-            xhat = einops.rearrange(xhat, "b n x -> n b x")
+            B, N, D = xhat.shape
+            batch = einops.repeat(torch.arange(B, device=xhat.device), "b -> (b n)", n=N)
+            xhat = einops.rearrange(xhat, "b n x -> (b n) x")
+
             x = dim_zero_cat(getattr(self, f"coordinates_{sigma}_x"))
-            x = einops.rearrange(x, "b n x -> n b x")
+            x = einops.rearrange(x, "b n x -> (b n) x")
 
-            assert xhat.ndim == x.ndim == 3, f"{xhat.shape=}"
+            aux = compute_rmsd_metrics(x=x, xhat=xhat, batch=batch, num_graphs=B, sigma=sigma, mean_center=True)
 
-            xhat -= xhat.mean(dim=0, keepdim=True)
-            x -= x.mean(dim=0, keepdim=True)
+            for k, v in aux.items():
+                assert v.shape == (B,)
+                rmsd_metrics[(sigma, k)] = v.mean().cpu().item()
 
-            scaled_rmsd_per_sigma[sigma] = utils.scaled_rmsd(x, xhat, sigma)
-        return trajectories, scaled_rmsd_per_sigma
+        return trajectories, rmsd_metrics
 
     def log(
         self,
         trajectories: dict[str, md.Trajectory] | None = None,
-        scaled_rmsd_per_sigma: dict[float, float] | None = None,
+        rmsd_metrics: dict[tuple[float,str], float] | None = None,
     ) -> None:
         if trajectories is None:
             trajectories, _ = self.compute()
@@ -156,6 +160,6 @@ class VisualizeDenoiseMetrics(torchmetrics.Metric):
         except ValueError:
             pass
 
-        if scaled_rmsd_per_sigma is not None:
-            for sigma, scaled_rmsd in scaled_rmsd_per_sigma.items():
-                utils.wandb_dist_log({f"{self.dataset.label()}/scaled_rmsd_per_dataset/sigma={sigma}": scaled_rmsd})
+        if rmsd_metrics is not None:
+            for (sigma, k), v in rmsd_metrics.items():
+                utils.wandb_dist_log({f"{self.dataset.label()}/{k}/sigma={sigma}": v})
