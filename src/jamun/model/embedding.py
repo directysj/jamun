@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch_geometric
 
 
-class SimpleAtomEmbedding(nn.Module):
-    """Embed atoms without residue information."""
+class SimpleAtomEmbedder(nn.Module):
+    """Embeds atoms without residue information."""
 
     def __init__(self, embedding_dim: int, max_value: int):
         super().__init__()
@@ -16,8 +16,8 @@ class SimpleAtomEmbedding(nn.Module):
         return self.embedding(topology["atom_type_index"])
 
 
-class AtomEmbeddingWithResidueInformation(nn.Module):
-    """Embed atoms with residue information."""
+class ResidueAtomEmbedder(nn.Module):
+    """Embeds atoms with residue information."""
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class AtomEmbeddingWithResidueInformation(nn.Module):
 
 
 class BondEdgeEmbedder(nn.Module):
-    """Embed bond types."""
+    """Embeds the bond mask."""
 
     def __init__(self, bonded_edge_attr_dim: int, input_as_atom_graphs: bool = False):
         super().__init__()
@@ -88,7 +88,7 @@ class BondEdgeEmbedder(nn.Module):
 
 
 class RadialEdgeEmbedder(nn.Module):
-    """Embed radial edge attributes."""
+    """Embeds radial edge attributes."""
 
     def __init__(self, radial_edge_attr_dim: int, max_radius: float, basis: str, cutoff: bool):
         super().__init__()
