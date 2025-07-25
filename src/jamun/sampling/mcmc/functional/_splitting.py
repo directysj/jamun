@@ -1,11 +1,9 @@
-import logging
+from typing import Any
 import math
 from collections.abc import Callable
 
 import torch
 from tqdm.auto import tqdm
-
-log = logging.getLogger(__name__)
 
 
 def initialize_velocity(v_init: str | torch.Tensor, y: torch.Tensor, u: float) -> torch.Tensor:
@@ -43,21 +41,21 @@ def create_score_fn(score_fn: Callable, inverse_temperature: float, score_fn_cli
 
 def aboba(
     y: torch.Tensor,
-    score_fn: Callable,
+    score_fn: Callable[[torch.Tensor], torch.Tensor],
     steps: int,
-    v_init: str | torch.Tensor = "zero",
-    save_trajectory=False,
-    save_every_n_steps=1,
-    burn_in_steps=0,
-    verbose=False,
-    cpu_offload=False,
-    delta: float = 1.0,
-    friction: float = 1.0,
-    M: float = 1.0,
-    inverse_temperature: float = 1.0,
-    score_fn_clip: float | None = None,
-    **_,
-):
+    v_init: str | torch.Tensor,
+    save_trajectory: bool,
+    save_every_n_steps: int,
+    burn_in_steps: int,
+    verbose: bool,
+    cpu_offload: bool,
+    delta: float,
+    friction: float,
+    M: float,
+    inverse_temperature: float,
+    score_fn_clip: float | None,
+    **_: Any,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """
     Note
     ----
@@ -111,21 +109,21 @@ def aboba(
 
 def baoab(
     y: torch.Tensor,
-    score_fn: Callable,
+    score_fn: Callable[[torch.Tensor], torch.Tensor],
     steps: int,
-    v_init: str | torch.Tensor = "zero",
-    save_trajectory=False,
-    save_every_n_steps=1,
-    burn_in_steps=0,
-    verbose=False,
-    cpu_offload=False,
-    delta: float = 1.0,
-    friction: float = 1.0,
-    M: float = 1.0,
-    inverse_temperature: float = 1.0,
-    score_fn_clip: float | None = None,
-    **_,
-):
+    v_init: str | torch.Tensor,
+    save_trajectory: bool,
+    save_every_n_steps: int,
+    burn_in_steps: int,
+    verbose: bool,
+    cpu_offload: bool,
+    delta: float,
+    friction: float,
+    M: float,
+    inverse_temperature: float,
+    score_fn_clip: float | None,
+    **_: Any,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """
     Note
     ----

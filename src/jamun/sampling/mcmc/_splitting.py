@@ -13,7 +13,7 @@ class ABOBA:
     delta: float = 1.0
     friction: float = 1.0
     M: float = 1.0
-    steps: int = 128
+    steps: int = 1000
     save_trajectory: bool = False
     save_every_n_steps: int = 1
     burn_in_steps: int = 0
@@ -38,7 +38,7 @@ class BAOAB:
     delta: float = 1.0
     friction: float = 1.0
     M: float = 1.0
-    steps: int = 128
+    steps: int = 1000
     save_trajectory: bool = False
     save_every_n_steps: int = 1
     burn_in_steps: int = 0

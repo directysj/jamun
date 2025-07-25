@@ -9,48 +9,54 @@ class ModelSamplingWrapper:
 
     def __init__(self, model: nn.Module, init_graphs: torch_geometric.data.Data, sigma: float):
         self._model = model
-        self.init_graphs = init_graphs
+        self.init_pos = init_graphs.pos
+        if init_graphs.get("batch") is None:
+            self.batch = torch.zeros(self.init_pos.shape[0], dtype=torch.long, device=self.init_pos.device)
+            self.num_graphs = 1
+        else:
+            self.batch = init_graphs.batch
+            self.num_graphs = init_graphs.num_graphs
+
+        self.topology = init_graphs.clone()
         self.sigma = sigma
+
+        del self.topology.pos, self.topology.batch, self.topology.num_graphs
 
     @property
     def device(self) -> torch.device:
         return self._model.device
 
     def sample_initial_noisy_positions(self) -> torch.Tensor:
-        pos = self.init_graphs.pos
+        pos = self.init_pos.clone()
         pos = pos + torch.randn_like(pos) * self.sigma
         return pos
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         return getattr(self._model, name)
 
-    def score(self, y, sigma, *args, **kwargs):
-        return self._model.score(self.positions_to_graph(y), sigma)
+    def score(self, y: torch.Tensor, sigma: float):
+        return self._model.score(
+            y,
+            topology=self.topology,
+            batch=self.batch,
+            num_graphs=self.num_graphs,
+            sigma=sigma,
+        )
 
-    def xhat(self, y, sigma, *args, **kwargs):
-        xhat_graph = self._model.xhat(self.positions_to_graph(y), sigma)
-        return xhat_graph.pos
-
-    def positions_to_graph(self, positions: torch.Tensor) -> torch_geometric.data.Data:
-        """Wraps a tensor of positions to a graph with these positions as an attribute."""
-        # Check input validity
-        assert len(positions) == self.init_graphs.num_nodes, "The number of positions and nodes should be the same"
-        assert positions.shape[1] == 3, "Positions tensor should have a shape of (n, 3)"
-
-        input_graphs = self.init_graphs.clone()
-        input_graphs.pos = positions
-
-        # Save for debugging.
-        self.input_graphs = input_graphs
-        return input_graphs.to(positions.device)
+    def xhat(self, y: torch.Tensor, sigma: float):
+        return self._model.xhat(
+            y,
+            topology=self.topology,
+            batch=self.batch,
+            num_graphs=self.num_graphs,
+            sigma=sigma,
+        )
 
     def unbatch_samples(self, samples: dict[str, torch.Tensor]) -> list[torch_geometric.data.Data]:
         """Unbatch samples."""
-        if "batch" not in self.init_graphs:
-            raise ValueError("The initial graph does not have a batch attribute.")
 
         # Copy off the input graphs, to update attributes later.
-        output_graphs = self.init_graphs.clone()
+        output_graphs = self.topology.clone()
         output_graphs = torch_geometric.data.Batch.to_data_list(output_graphs)
 
         for key, value in samples.items():
@@ -65,7 +71,7 @@ class ModelSamplingWrapper:
                     "num_frames atoms coords -> atoms num_frames coords",
                 )
 
-            unbatched_values = torch_geometric.utils.unbatch(value, self.init_graphs.batch)
+            unbatched_values = torch_geometric.utils.unbatch(value, self.batch)
             for output_graph, unbatched_value in zip(output_graphs, unbatched_values, strict=True):
                 if key in output_graph:
                     raise ValueError(f"Key {key} already exists in the output graph.")

@@ -256,14 +256,6 @@ class EnergyModel(pl.LightningModule):
 
         return xhat
 
-    def score(self, data: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
-        """Compute the score function."""
-        y, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.pos, topology.batch
-        sigma = torch.as_tensor(sigma).to(y)
-        _, _, score = self.get_model_predictions(y, topology, batch, num_graphs, sigma)
-        return score
-
     def energy(
         self,
         pos: torch.Tensor,
@@ -273,8 +265,18 @@ class EnergyModel(pl.LightningModule):
         sigma: float | torch.Tensor,
     ) -> torch.Tensor:
         """Compute the energy and score for the given positions."""
-        _, energy, _ = self.get_model_predictions(pos, topology, batch, num_graphs, sigma, energy_only=True)
-        return energy
+        return self.energy_and_score(pos, topology, batch, num_graphs, sigma)[0]
+
+    def score(
+        self,
+        y: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
+        sigma: float | torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute the score function."""
+        return self.energy_and_score(y, topology, batch, num_graphs, sigma)[1]
 
     def energy_and_score(
         self,

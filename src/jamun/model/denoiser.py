@@ -207,12 +207,18 @@ class Denoiser(pl.LightningModule):
             y = -y
         return y
 
-    def score(self, data: torch_geometric.data.Batch, sigma: float | torch.Tensor) -> torch.Tensor:
+    def score(
+        self,
+        y: torch.Tensor,
+        topology: torch_geometric.data.Batch,
+        batch: torch.Tensor,
+        num_graphs: int,
+        sigma: float | torch.Tensor,
+    ) -> torch.Tensor:
         """Compute the score function."""
-        y, topology, batch, num_graphs = data.pos, data.clone(), data.batch, data.num_graphs
-        del topology.batch, topology.num_graphs
         sigma = torch.as_tensor(sigma, device=y.device, dtype=y.dtype)
-        return (self.xhat(y, topology, batch, num_graphs, sigma) - y) / (unsqueeze_trailing(sigma, y.ndim - 1) ** 2)
+        xhat = self.xhat(y, topology, batch, num_graphs, sigma)
+        return (xhat - y) / (unsqueeze_trailing(sigma, y.ndim - 1) ** 2)
 
     def xhat_normalized(
         self,
