@@ -5,11 +5,10 @@ from collections.abc import Callable
 import e3nn
 import e3tools
 import lightning.pytorch as pl
-import numpy as np
 import torch
 import torch_geometric
 
-from jamun.model.denoiser import add_edges, compute_normalization_factors
+from jamun.model.utils import add_edges, compute_normalization_factors, compute_rmsd_metrics
 from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
 
 
@@ -341,29 +340,18 @@ class EnergyModel(pl.LightningModule):
         sigma: float | torch.Tensor,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute the loss."""
-        if self.mean_center:
-            with torch.cuda.nvtx.range("mean_center_x"):
-                x = mean_center_f(x, batch, num_graphs)
+
+        aux = compute_rmsd_metrics(
+            x=x, xhat=xhat, batch=batch, num_graphs=num_graphs, sigma=sigma, mean_center=self.mean_center
+        )
+
+        mse = aux["mse"]
 
         D = xhat.shape[-1]
-
-        # Compute the raw loss.
-        with torch.cuda.nvtx.range("raw_coordinate_loss"):
-            raw_coordinate_loss = (xhat - x).pow(2).sum(dim=-1)
-
-        # Take the mean over each graph.
-        with torch.cuda.nvtx.range("mean_over_graphs"):
-            mse = e3tools.scatter(raw_coordinate_loss, batch, dim=0, dim_size=num_graphs, reduce="mean")
-
-        # Compute the scaled RMSD.
-        with torch.cuda.nvtx.range("scaled_rmsd"):
-            rmsd = torch.sqrt(mse)
-            scaled_rmsd = rmsd / (sigma * np.sqrt(D))
 
         # Account for the loss weight across graphs and noise levels.
         with torch.cuda.nvtx.range("loss_weight"):
             loss = mse * topology.loss_weight
-
             _, _, c_out, _ = compute_normalization_factors(
                 sigma,
                 average_squared_distance=self.average_squared_distance,
@@ -374,11 +362,7 @@ class EnergyModel(pl.LightningModule):
             )
             loss = loss / (c_out**2)
 
-        return loss, {
-            "mse": mse,
-            "rmsd": rmsd,
-            "scaled_rmsd": scaled_rmsd,
-        }
+        return loss, aux
 
     def noise_and_compute_loss(
         self,

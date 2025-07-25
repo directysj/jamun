@@ -24,3 +24,4 @@ torch_compile_debug
 *.profile*
 **/*.log
 **/*.err
+scripts/study
