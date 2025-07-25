@@ -1,2 +1,3 @@
-from . import diffusion, mcmc, walkjump
-from ._sampler import Sampler
+from .diffusion import DiffusionSampler
+from .sampler import Sampler
+from .walkjump import WalkJumpSampler
