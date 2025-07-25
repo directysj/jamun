@@ -2,9 +2,7 @@ import logging
 from collections.abc import Callable
 
 import e3nn
-import e3tools
 import lightning.pytorch as pl
-import numpy as np
 import torch
 import torch_geometric
 

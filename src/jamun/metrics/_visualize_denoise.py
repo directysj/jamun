@@ -126,7 +126,7 @@ class VisualizeDenoiseMetrics(torchmetrics.Metric):
     def log(
         self,
         trajectories: dict[str, md.Trajectory] | None = None,
-        rmsd_metrics: dict[tuple[float,str], float] | None = None,
+        rmsd_metrics: dict[tuple[float, str], float] | None = None,
     ) -> None:
         if trajectories is None:
             trajectories, _ = self.compute()

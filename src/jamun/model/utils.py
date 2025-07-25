@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch_geometric
 
-from jamun.utils import align_A_to_B_batched_f, mean_center_f, to_atom_graphs, unsqueeze_trailing
+from jamun.utils import align_A_to_B_batched_f, mean_center_f
 
 
 def compute_normalization_factors(
