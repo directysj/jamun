@@ -4,7 +4,17 @@ irreps_out: "1x1e"
 irreps_hidden: "120x0e + 32x1e"
 irreps_sh: "1x0e + 1x1e"
 n_layers: 5
-bonded_edge_attr_dim
+radial_edge_embedder_factory:
+  _target_: jamun.model.embedding.RadialEdgeEmbedder
+  _partial_: true
+  radial_edge_attr_dim: 32
+  basis: "gaussian"
+  cutoff: true
+  max_radius: ${model.max_radius}
+bond_edge_embedder_factory:
+  _target_: jamun.model.embedding.BondEdgeEmbedder
+  _partial_: true
+  bonded_edge_attr_dim: 32
 atom_embedder_factory:
   _target_: jamun.model.embedding.AtomEmbeddingWithResidueInformation
   _partial_: true

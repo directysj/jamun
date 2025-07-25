@@ -30,9 +30,6 @@ atom_embedder_factory:
 hidden_layer_factory:
   _target_: e3tools.nn.ConvBlock
   _partial_: true
-  conv:
-    _target_: e3tools.nn.Conv
-    _partial_: true
 output_head_factory:
   _target_: e3tools.nn.EquivariantMLP
   _partial_: true
