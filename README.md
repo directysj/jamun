@@ -1,4 +1,7 @@
 # JAMUN: Bridging Smoothed Molecular Dynamics and Score-Based Learning for Conformational Ensembles
+![License](https://img.shields.io/badge/license-Apache-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11+-green.svg)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 This is the official implementation of the paper
 [JAMUN: Bridging Smoothed Molecular Dynamics and Score-Based Learning for Conformational Ensembles](https://arxiv.org/abs/2410.14621).

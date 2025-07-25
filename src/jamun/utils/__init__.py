@@ -27,7 +27,6 @@ from .residue_metadata import (
     encode_residue,
 )
 from .sampling_wrapper import ModelSamplingWrapper
-from .scaled_rmsd import scaled_rmsd
 from .simple_ddp import SimpleDDPStrategy
 from .singleton import singleton
 from .slurm import wait_for_jobs

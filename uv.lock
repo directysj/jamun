@@ -587,16 +587,17 @@ wheels = [
 
 [[package]]
 name = "e3tools"
-version = "0.1.1"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "e3nn" },
     { name = "jaxtyping" },
+    { name = "setuptools" },
     { name = "torch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/af/e48b3be6fa30e83adb553869da760117eaa643b7c2af9946b805cf48b325/e3tools-0.1.1.tar.gz", hash = "sha256:23022378554b9ca73f1480e4c575088ca7a73ee4adee7c761eb29907e8cc2098", size = 75249, upload-time = "2025-03-07T00:05:40.901Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/c5/05873faa48ccf3b29eb36caaa57dc184a217e37e41baa10130f46b0194f3/e3tools-0.1.2.tar.gz", hash = "sha256:a53354e148aeb3c29ac2a96cecba4ea64d1a3c33c3f756b82871873de9085bad", size = 86812, upload-time = "2025-07-24T23:11:31.292Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/fd/f3bada4eb07cbca953d403ca121cc8224554bdee905cb2bd176cd75929fa/e3tools-0.1.1-py3-none-any.whl", hash = "sha256:40346ef8e17d966e16d3754e8945c30013baf2c6c4b959c5dacc9b810946d169", size = 18236, upload-time = "2025-03-07T00:05:39.723Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/50/1b4eff9273a21090a86e9168cfd59a8b32508418007aef045e03724bfc3a/e3tools-0.1.2-py3-none-any.whl", hash = "sha256:6bb8d7e87bb786fcbb5eccc3747d339fca7a0ead89d35074fec4b9864400480d", size = 21534, upload-time = "2025-07-24T23:11:30.181Z" },
 ]
 
 [[package]]
@@ -976,7 +977,7 @@ dev = [
 requires-dist = [
     { name = "ase", specifier = ">=3.23.0" },
     { name = "e3nn", specifier = ">=0.5.6" },
-    { name = "e3tools", specifier = ">=0.1.1" },
+    { name = "e3tools", specifier = ">=0.1.2" },
     { name = "einops", specifier = ">=0.8.0" },
     { name = "hydra-core", specifier = ">=1.3.2" },
     { name = "lightning", specifier = ">=2.4.0" },
@@ -2911,11 +2912,11 @@ wheels = [
 
 [[package]]
 name = "setuptools"
-version = "77.0.3"
+version = "80.9.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/81/ed/7101d53811fd359333583330ff976e5177c5e871ca8b909d1d6c30553aa3/setuptools-77.0.3.tar.gz", hash = "sha256:583b361c8da8de57403743e756609670de6fb2345920e36dc5c2d914c319c945", size = 1367236, upload-time = "2025-03-20T14:38:08.777Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c", size = 1319958, upload-time = "2025-05-27T00:56:51.443Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/07/99f2cefae815c66eb23148f15d79ec055429c38fa8986edcc712ab5f3223/setuptools-77.0.3-py3-none-any.whl", hash = "sha256:67122e78221da5cf550ddd04cf8742c8fe12094483749a792d56cd669d6cf58c", size = 1255678, upload-time = "2025-03-20T14:38:06.621Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922", size = 1201486, upload-time = "2025-05-27T00:56:49.664Z" },
 ]
 
 [[package]]
