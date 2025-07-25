@@ -1,6 +1,6 @@
-from typing import Any
 import math
 from collections.abc import Callable
+from typing import Any
 
 import torch
 from tqdm.auto import tqdm
