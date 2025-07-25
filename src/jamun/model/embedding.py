@@ -74,12 +74,12 @@ class ResidueAtomEmbedder(nn.Module):
 class BondEdgeEmbedder(nn.Module):
     """Embeds the bond mask."""
 
-    def __init__(self, bonded_edge_attr_dim: int, input_as_atom_graphs: bool = False):
+    def __init__(self, bond_edge_attr_dim: int, input_as_atom_graphs: bool = False):
         super().__init__()
-        self.bonded_edge_attr_dim = bonded_edge_attr_dim
-        self.bond_edge_embedder = torch.nn.Embedding(2, bonded_edge_attr_dim)
+        self.bond_edge_attr_dim = bond_edge_attr_dim
+        self.bond_edge_embedder = torch.nn.Embedding(2, bond_edge_attr_dim)
         self.input_as_atom_graphs = input_as_atom_graphs
-        self.irreps_out = e3nn.o3.Irreps(f"{bonded_edge_attr_dim}x0e")
+        self.irreps_out = e3nn.o3.Irreps(f"{bond_edge_attr_dim}x0e")
 
     def forward(self, topology: torch_geometric.data.Data) -> torch.Tensor:
         if self.input_as_atom_graphs:

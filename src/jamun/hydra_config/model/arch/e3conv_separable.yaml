@@ -14,7 +14,7 @@ radial_edge_embedder_factory:
 bond_edge_embedder_factory:
   _target_: jamun.model.embedding.BondEdgeEmbedder
   _partial_: true
-  bonded_edge_attr_dim: 32
+  bond_edge_attr_dim: 32
 atom_embedder_factory:
   _target_: jamun.model.embedding.ResidueAtomEmbedder
   _partial_: true
