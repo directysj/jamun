@@ -55,7 +55,9 @@ def add_edges(
     if topology.get("edge_index") is not None:
         return topology
 
-    topology = topology.clone()
+    with torch.cuda.nvtx.range("clone_topology"):
+        topology = topology.clone()
+
     with torch.cuda.nvtx.range("radial_graph"):
         radial_edge_index = e3tools.radius_graph(y, radial_cutoff, batch)
 
