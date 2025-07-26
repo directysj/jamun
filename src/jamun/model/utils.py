@@ -1,3 +1,5 @@
+from functools import cache
+
 import e3tools
 import numpy as np
 import torch
@@ -6,6 +8,7 @@ import torch_geometric
 from jamun.utils import align_A_to_B_batched_f, mean_center_f
 
 
+@cache
 def compute_normalization_factors(
     sigma: float | torch.Tensor,
     *,
@@ -14,7 +17,7 @@ def compute_normalization_factors(
     sigma_data: float | None = None,
     D: int = 3,
     device: torch.device | None = None,
-) -> tuple[float, float, float, float]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Compute the normalization factors for the input, skip connection, output, and noise."""
     sigma = torch.as_tensor(sigma, device=device)
 
