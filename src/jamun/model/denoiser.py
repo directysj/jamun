@@ -173,12 +173,12 @@ class Denoiser(pl.LightningModule):
         c_out = unsqueeze_trailing(c_out, y.ndim - 1)
         c_noise = c_noise.unsqueeze(0)
 
-        # Add edges to the graph.
-        with torch.cuda.nvtx.range("add_edges"):
-            topology = add_edges(y, topology, batch, radial_cutoff=self.max_radius)
-
         with torch.cuda.nvtx.range("scale_y"):
             y_scaled = y * c_in
+
+        # Add edges to the graph.
+        with torch.cuda.nvtx.range("add_edges"):
+            topology = add_edges(y_scaled, topology, batch, radial_cutoff=self.max_radius)
 
         if self.pass_topology_as_atom_graphs:
             topology = to_atom_graphs(topology, batch, num_graphs)
