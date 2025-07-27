@@ -1,6 +1,9 @@
+#!/usr/bin/env -S uv run
+
 import functools
 import logging
 import os
+from functools import partial
 
 import dotenv
 import tqdm
@@ -22,6 +25,7 @@ import jamun.data
 import jamun.distributions
 import jamun.model
 import jamun.model.arch
+import jamun.model.embedding
 
 dotenv.load_dotenv("../.env", verbose=True)
 JAMUN_DATA_PATH = os.getenv("JAMUN_DATA_PATH")
@@ -31,12 +35,13 @@ device = torch.device("cuda:0")
 
 datasets = {
     "train": jamun.data.parse_datasets_from_directory(
-        root=f"{JAMUN_DATA_PATH}/mdgen/data/4AA_sims_partitioned_chunked/train/",
-        traj_pattern="^(....)_.*.xtc",
-        pdb_pattern="^(....).pdb",
-        as_iterable=True,
-        subsample=5,
+        root=f"{JAMUN_DATA_PATH}/timewarp/2AA-1-large/train/",
+        traj_pattern="^(.*)-traj-arrays.npz",
+        pdb_pattern="^(.*)-traj-state0.pdb",
+        subsample=20,
+        as_iterable=False,
         max_datasets=100,
+        filter_codes=["AA"],
     )
 }
 
@@ -53,18 +58,24 @@ arch = functools.partial(
     irreps_hidden="120x0e + 32x1e",
     irreps_sh="1x0e + 1x1e",
     n_layers=5,
-    edge_attr_dim=64,
-    atom_type_embedding_dim=8,
-    atom_code_embedding_dim=8,
-    residue_code_embedding_dim=32,
-    residue_index_embedding_dim=8,
-    use_residue_information=True,
-    use_residue_sequence_index=False,
-    hidden_layer_factory=functools.partial(
-        e3tools.nn.ConvBlock,
-        conv=e3tools.nn.Conv,
+    radial_edge_embedder_factory=partial(
+        jamun.model.embedding.RadialEdgeEmbedder, radial_edge_attr_dim=32, basis="gaussian", cutoff=True, max_radius=1.0
     ),
-    output_head_factory=functools.partial(e3tools.nn.EquivariantMLP, irreps_hidden_list=["120x0e + 32x1e"]),
+    bond_edge_embedder_factory=partial(jamun.model.embedding.BondEdgeEmbedder, bond_edge_attr_dim=32),
+    atom_embedder_factory=partial(
+        jamun.model.embedding.ResidueAtomEmbedder,
+        atom_type_embedding_dim=8,
+        atom_code_embedding_dim=8,
+        residue_code_embedding_dim=32,
+        residue_index_embedding_dim=8,
+        use_residue_sequence_index=False,
+        num_atom_types=20,
+        max_sequence_length=10,
+        num_atom_codes=10,
+        num_residue_types=25,
+    ),
+    hidden_layer_factory=e3tools.nn.SeparableConvBlock,
+    output_head_factory=partial(e3tools.nn.EquivariantMLP, irreps_hidden_list=["120x0e + 32x1e"]),
 )
 py_logger.info(f"Number of params: {sum(p.numel() for p in arch().parameters())}")
 
