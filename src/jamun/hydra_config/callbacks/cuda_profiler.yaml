@@ -1,0 +1,4 @@
+cuda_profiler:
+  _target_: jamun.callbacks.CUDAProfiler
+  warmup: 2
+  active: null

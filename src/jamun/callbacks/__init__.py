@@ -1,3 +1,4 @@
+from ._cuda_profiler import CUDAProfiler
 from ._ema import EMA, EMAModelCheckpoint
 from ._plot_grad_norm_distribution import PlotGradNormDistribution
 from ._plot_loss_distribution import PlotLossDistribution
