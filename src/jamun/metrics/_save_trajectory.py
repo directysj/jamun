@@ -84,11 +84,11 @@ class SaveTrajectory(TrajectoryMetric):
         # Save the predict sample trajectory as a PDB and DCD file.
         pred_trajectories = self.sample_trajectories(new=True)
         for trajectory_index, pred_trajectory in enumerate(pred_trajectories, start=self.num_chains_seen):
-            # utils.save_pdb(pred_trajectory, self.filename_pred(trajectory_index, "pdb"))
+            utils.save_pdb(pred_trajectory, self.filename_pred(trajectory_index, "pdb"))
             pred_trajectory.save_dcd(self.filename_pred(trajectory_index, "dcd"))
 
         pred_trajectory_joined = self.joined_sample_trajectory()
-        # utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
+        utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
         pred_trajectory_joined.save_dcd(self.filename_pred("joined", "dcd"))
 
         py_logger = logging.getLogger("jamun")
