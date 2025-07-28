@@ -1,5 +1,5 @@
 import os
-
+import logging
 from lightning.pytorch.utilities import rank_zero_only
 
 from jamun import utils
@@ -63,8 +63,8 @@ class SaveTrajectory(TrajectoryMetric):
             return
 
         # Save the joined samples at the very end of sampling to wandb.
-        label = self.dataset.label()
-        label = label.replace("/", "_").replace("=", "-")
+        # label = self.dataset.label()
+        # label = label.replace("/", "_").replace("=", "-")
 
         # for ext in self.pred_samples_extensions:
         #     filename = self.filename_pred("joined", ext)
@@ -90,5 +90,8 @@ class SaveTrajectory(TrajectoryMetric):
         pred_trajectory_joined = self.joined_sample_trajectory()
         # utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
         pred_trajectory_joined.save_dcd(self.filename_pred("joined", "dcd"))
+
+        py_logger = logging.getLogger("jamun")
+        py_logger.info(f"{self.dataset.label()}: Saved predicted samples to {os.path.abspath(self.pred_samples_dir)}")
 
         return {}

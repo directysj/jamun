@@ -34,7 +34,7 @@ class SampleVisualizer(TrajectoryMetric):
         # Warn if there are not enough samples to plot.
         if len(all_mols) < self.num_samples_to_plot:
             utils.dist_log(
-                f"Only {len(all_mols)} samples available for visualization: {traj} after subsampling by {self.subsample}."
+                f"{self.dataset.label()}: Only {len(all_mols)} samples in {traj} available for visualization after subsampling by {self.subsample}."
             )
 
         # Create a dictionary of the RDKit mols, indexed by row.
@@ -56,7 +56,7 @@ class SampleVisualizer(TrajectoryMetric):
         pred_trajectories = self.sample_trajectories(new=True)
         for trajectory_index, pred_trajectory in enumerate(pred_trajectories, start=self.num_chains_seen):
             utils.dist_log(
-                f"Visualizing trajectory {trajectory_index} ({pred_trajectory}) for dataset {self.dataset.label()}."
+                f"{self.dataset.label()}: Visualizing trajectory {trajectory_index} ({pred_trajectory}) for dataset."
             )
             pred_trajectory_subset = self.align_and_subsample(pred_trajectory)
             self.plot(pred_trajectory_subset, f"pred_traj_{trajectory_index}")
