@@ -123,13 +123,21 @@ sbatch scripts/slurm/sample.sh
 
 ### Loading Trained Models
 
-We provide trained models (for both sampling, and restarting training) for Timewarp 2AA, Timewarp 4AA, MDGen 4AA and other datasets at https://huggingface.co/ameya98/JAMUN:
+We provide trained models (for both sampling, and restarting training) for Timewarp 2AA, Timewarp 4AA, MDGen 4AA and other datasets at [Hugging Face](https://huggingface.co/ameya98/JAMUN).
+Unfortunately, some of these checkpoints were from an older version of this code. If you wish to run sampling with these checkpoints, we have made an `old-checkpoints` branch for compatibility:
+
+```bash
+git switch old-checkpoints
+```
+
+Then, clone the checkpoints repository:
 
 ```bash
 # Make sure you have git-lfs installed (https://git-lfs.com)
 git lfs install
 git clone https://huggingface.co/ameya98/JAMUN
 ```
+
 
 If you want to test out your own trained model,
 either specify the `wandb_train_run_path` (in the form `entity/project/run_id`, which can be obtained from the Overview tab in the Weights and Biases UI for your training run), or the `checkpoint_dir` of the trained model.
