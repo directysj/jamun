@@ -18,11 +18,11 @@ class SaveTrajectory(TrajectoryMetric):
         # Create the output directories.
         self.save_true_trajectory = save_true_trajectory
         if self.save_true_trajectory:
-            self.true_samples_extensions = ["pdb", "dcd"]
+            self.true_samples_extensions = ["dcd"]
             for ext in self.true_samples_extensions:
                 os.makedirs(os.path.join(self.true_samples_dir, ext), exist_ok=True)
 
-        self.pred_samples_extensions = ["pdb", "dcd"]
+        self.pred_samples_extensions = ["dcd"]
         for ext in self.pred_samples_extensions:
             os.makedirs(os.path.join(self.pred_samples_dir, ext), exist_ok=True)
 
@@ -32,7 +32,7 @@ class SaveTrajectory(TrajectoryMetric):
             raise ValueError(f"Invalid extension: {extension}")
         filenames = {
             "npy": os.path.join(self.pred_samples_dir, "npy", f"{self.sample_key}_{trajectory_index}.npy"),
-            "pdb": os.path.join(self.pred_samples_dir, "pdb", f"{self.sample_key}_{trajectory_index}.pdb"),
+            # "pdb": os.path.join(self.pred_samples_dir, "pdb", f"{self.sample_key}_{trajectory_index}.pdb"),
             "dcd": os.path.join(self.pred_samples_dir, "dcd", f"{self.sample_key}_{trajectory_index}.dcd"),
         }
         return filenames[extension]
@@ -42,7 +42,7 @@ class SaveTrajectory(TrajectoryMetric):
         if extension not in self.true_samples_extensions:
             raise ValueError(f"Invalid extension: {extension}")
         filenames = {
-            "pdb": os.path.join(self.true_samples_dir, "pdb", f"{trajectory_index}.pdb"),
+            # "pdb": os.path.join(self.true_samples_dir, "pdb", f"{trajectory_index}.pdb"),
             "dcd": os.path.join(self.true_samples_dir, "dcd", f"{trajectory_index}.dcd"),
         }
         return filenames[extension]
@@ -55,7 +55,7 @@ class SaveTrajectory(TrajectoryMetric):
         if not self.save_true_trajectory:
             return
 
-        utils.save_pdb(true_trajectory, self.filename_true(0, "pdb"))
+        # utils.save_pdb(true_trajectory, self.filename_true(0, "pdb"))
         true_trajectory.save_dcd(self.filename_true(0, "dcd"))
 
     def on_sample_end(self):
@@ -84,14 +84,14 @@ class SaveTrajectory(TrajectoryMetric):
         # Save the predict sample trajectory as a PDB and DCD file.
         pred_trajectories = self.sample_trajectories(new=True)
         for trajectory_index, pred_trajectory in enumerate(pred_trajectories, start=self.num_chains_seen):
-            utils.save_pdb(pred_trajectory, self.filename_pred(trajectory_index, "pdb"))
+            # utils.save_pdb(pred_trajectory, self.filename_pred(trajectory_index, "pdb"))
             pred_trajectory.save_dcd(self.filename_pred(trajectory_index, "dcd"))
 
         pred_trajectory_joined = self.joined_sample_trajectory()
-        utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
+        # utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
         pred_trajectory_joined.save_dcd(self.filename_pred("joined", "dcd"))
 
         py_logger = logging.getLogger("jamun")
-        py_logger.info(f"{self.dataset.label()}: Saved predicted samples to {os.path.abspath(self.pred_samples_dir)}")
+        py_logger.info(f"{self.dataset.label()}: Saved predicted samples to {os.path.abspath(self.output_dir)}")
 
         return {}
