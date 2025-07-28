@@ -12,13 +12,17 @@ continue_chain: true
 # wandb_train_run_path: prescient-design/jamun/ibtxmwcr
 
 # New 4AA
-wandb_train_run_path: prescient-design/jamun/6297yugb
+# wandb_train_run_path: prescient-design/jamun/6297yugb
 
 # Finetuned new 4AA
 # wandb_train_run_path: prescient-design/jamun/x6rwt91k
 
-# init_pdb: /data/bucket/kleinhej/fast-folding/processed/chignolin/filtered.pdb
-init_pdbs: ???
+# trpcage
+wandb_train_run_path: prescient-design/jamun/30ud8v9x
+
+init_pdbs:
+  chignolin: /data/bucket/kleinhej/fast-folding/processed/chignolin/filtered.pdb
+  trpcage: /data/bucket/kleinhej/fast-folding/processed/trpcage/filtered.pdb
 
 checkpoint_type: best_so_far
 sigma: 0.04
@@ -30,11 +34,11 @@ score_fn_clip: 100.0
 
 init_datasets:
   _target_: jamun.data.create_dataset_from_pdbs
-  pdbfiles: ${init_pdbs}
+  pdb_entries: ${init_pdbs}
 
-finetune_on_init:
-  num_steps: ???
-  batch_size: 16
+# finetune_on_init:
+#   num_steps: ???
+#   batch_size: 16
 
 sampler:
   _target_: jamun.sampling.Sampler
