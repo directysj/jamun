@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 import tempfile
-from typing import List, Tuple
 
 from jamun.utils import convert_to_one_letter_code, convert_to_three_letter_code
 
@@ -13,7 +12,7 @@ logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s
 py_logger = logging.getLogger("prepare_pdb")
 
 
-def parse_sequence(sequence: str) -> List[str]:
+def parse_sequence(sequence: str) -> list[str]:
     """Parse sequence string into list of three-letter codes.
 
     Accepts:
@@ -29,7 +28,7 @@ def parse_sequence(sequence: str) -> List[str]:
     return [convert_to_three_letter_code(aa) for aa in sequence]
 
 
-def create_sequence(amino_acids: List[str], mode: str) -> str:
+def create_sequence(amino_acids: list[str], mode: str) -> str:
     """Create sequence string with optional capping."""
     if len(amino_acids) < 2:
         raise ValueError("Sequence must have at least two amino acids")
@@ -70,7 +69,7 @@ quit
 """
 
 
-def run_tleap(input_content: str) -> Tuple[bool, str]:
+def run_tleap(input_content: str) -> tuple[bool, str]:
     """Run tleap with given input content."""
 
     # Write tleap input file.
@@ -96,7 +95,7 @@ def run_tleap(input_content: str) -> Tuple[bool, str]:
     return success, message
 
 
-def create_output_filename(amino_acids: List[str], mode: str, outputdir: str) -> str:
+def create_output_filename(amino_acids: list[str], mode: str, outputdir: str) -> str:
     """Create output filename based on sequence and mode."""
     sequence_short = "".join([convert_to_one_letter_code(aa) for aa in amino_acids])
     return os.path.join(outputdir, f"{mode}_{sequence_short}.pdb")

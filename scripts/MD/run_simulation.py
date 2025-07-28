@@ -5,7 +5,6 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import openmm_utils as op
 from openmm.app import ForceField, Simulation, Topology
@@ -19,7 +18,7 @@ class SimulationConfig:
     """Configuration parameters for MD simulation"""
 
     init_pdb: str
-    output_dir: Optional[str] = None
+    output_dir: str | None = None
     dt_ps: float = 0.002
     temp_K: float = 300
     pressure_bar: float = 1.0
@@ -166,7 +165,7 @@ def get_output_file_prefix(filename: str) -> str:
     return os.path.splitext(os.path.basename(filename))[0]
 
 
-def setup_system(config: SimulationConfig) -> Tuple[op.Positions, Topology, Simulation]:
+def setup_system(config: SimulationConfig) -> tuple[op.Positions, Topology, Simulation]:
     """Set up the initial system."""
 
     # Create a temporary directory for output files, if not provided.

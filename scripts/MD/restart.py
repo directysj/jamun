@@ -16,7 +16,7 @@ temp = 300  # 300K temperature
 pressure = 1.0
 
 
-pdb = PDBFile("%s.pdb" % name)
+pdb = PDBFile(f"{name}.pdb")
 
 topology = pdb.topology
 positions = pdb.positions
@@ -25,10 +25,10 @@ ff = ForceField("amber99sbildn.xml", "tip3p.xml")
 simulation = op.get_system_with_Langevin_integrator(topology, ff, temp, 0.002)
 
 top = md.Topology.from_openmm(simulation.topology)
-traj = md.load("%s.pdb" % name)
+traj = md.load(f"{name}.pdb")
 
 
-with open("%s.state" % name, "r") as f:
+with open(f"{name}.state") as f:
     state_xml = f.read()
 
 state = XmlSerializer.deserialize(state_xml)

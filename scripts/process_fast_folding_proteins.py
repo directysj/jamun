@@ -4,8 +4,8 @@ import os
 import random
 import shutil
 import sys
+
 import tqdm
-from typing import List, Tuple, Dict
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("process_fast_folding_proteins")
@@ -18,7 +18,7 @@ SPLITS = {
 }
 
 
-def find_xtc_files(root_dir: str) -> Dict[str, str]:
+def find_xtc_files(root_dir: str) -> dict[str, str]:
     """
     Recursively find all .xtc files and their containing folders starting from root_dir
 
@@ -93,5 +93,5 @@ if __name__ == "__main__":
             output_file = os.path.join(split_dir, f"{key}.xtc")
             shutil.copy(input_file, output_file)
             # py_logger.info(f"Saved {input_file} as {output_file}")
-        
+
         py_logger.info(f"Saved {len(split_files)} files for {split} split in {split_dir}")

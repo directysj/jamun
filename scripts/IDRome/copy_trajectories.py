@@ -6,13 +6,12 @@ import multiprocessing
 import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
-from typing import List
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("process_IDRome")
 
 
-def find_trajectory_directories(root_dir: str) -> List[str]:
+def find_trajectory_directories(root_dir: str) -> list[str]:
     """Find all directories containing .pdb files."""
     traj_dirs = []
     for dirpath, dirnames, filenames in os.walk(root_dir):

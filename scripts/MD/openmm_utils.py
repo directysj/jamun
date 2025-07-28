@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-from typing import List, Optional, Tuple
 
 import mdtraj as md
 import numpy as np
@@ -37,8 +36,8 @@ from openmm.unit import (
     picoseconds,
 )
 
-Positions = List[Tuple[Vec3, ...]]
-Velocities = List[Tuple[Vec3, ...]]
+Positions = list[tuple[Vec3, ...]]
+Velocities = list[tuple[Vec3, ...]]
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("openmm_utils")
@@ -74,7 +73,7 @@ def fix_pdb(
     pdb_file: str,
     output_file_prefix: str = "fixed",
     save_file: bool = True,
-) -> Tuple[Positions, Topology]:
+) -> tuple[Positions, Topology]:
     """Fixes the raw .pdb from colabfold using pdbfixer."""
     py_logger.info("Fixing the PDB file with pdbfixer.")
     fixer = pdbfixer.PDBFixer(pdb_file)
@@ -98,7 +97,7 @@ def add_hydrogens(
     forcefield: ForceField,
     save_file: bool = True,
     output_file_prefix: str = "hydrogenated",
-) -> Tuple[Positions, Topology]:
+) -> tuple[Positions, Topology]:
     """Adds missing hydrogen to the pdb for a particular forcefield."""
     py_logger.info("Adding hydrogens to the system.")
     modeller = Modeller(topology, positions)
@@ -123,7 +122,7 @@ def solvate(
     negative_ion: str,
     save_file: bool = True,
     output_file_prefix: str = "solvated",
-) -> Tuple[Positions, Topology]:
+) -> tuple[Positions, Topology]:
     """Creates a box of solvent with padding and neutral charges."""
     py_logger.info("Solvating the system.")
     modeller = Modeller(topology, positions)
@@ -146,7 +145,7 @@ def solvate(
 
 
 def get_system_with_Langevin_integrator(
-    topology: Topology, forcefield: ForceField, temp_K: float, dt_ps: float, state: Optional[str] = None
+    topology: Topology, forcefield: ForceField, temp_K: float, dt_ps: float, state: str | None = None
 ) -> Simulation:
     """Creates a system with Langevin integrator for NVT ensemble."""
     system = forcefield.createSystem(
@@ -251,7 +250,7 @@ def minimize_energy(
     output_file_prefix: str = "minimized",
     save_file: bool = True,
     save_protein_only_file: bool = True,
-) -> Tuple[Positions, Simulation]:
+) -> tuple[Positions, Simulation]:
     """Energy minimization steps to relax the system."""
     py_logger.info("Minimizing the energy of the system.")
     simulation.context.setPositions(positions)
@@ -297,18 +296,18 @@ def run_simulation(
     output_file_prefix: str,
     ensemble: str,
     output_frequency: int,
-    temp_K: Optional[float] = None,
-    pressure_bar: Optional[float] = None,
+    temp_K: float | None = None,
+    pressure_bar: float | None = None,
     save_intermediate_files: bool = False,
-    velocities: Optional[Velocities] = None,
+    velocities: Velocities | None = None,
     restart_from_checkpoint: bool = False,
     save_xtc: bool = False,
-    xtc_output_file: Optional[str] = None,
+    xtc_output_file: str | None = None,
     save_pdb: bool = False,
-    pdb_output_file: Optional[str] = None,
+    pdb_output_file: str | None = None,
     save_checkpoint_file: bool = False,
-    checkpoint_file: Optional[str] = None,
-) -> Tuple[Positions, Velocities, Simulation]:
+    checkpoint_file: str | None = None,
+) -> tuple[Positions, Velocities, Simulation]:
     """
     Run molecular dynamics simulation with flexible configuration options.
 

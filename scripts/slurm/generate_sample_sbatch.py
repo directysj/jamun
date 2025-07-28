@@ -43,9 +43,7 @@ def parse_args():
 def generate_sample_sbatch_script(args):
     experiment_dir = os.path.dirname(args.config_file)
     if not experiment_dir.endswith("experiment"):
-        raise ValueError(
-            f"Config file '{args.config_file}' must be in the 'experiment' directory."
-        )
+        raise ValueError(f"Config file '{args.config_file}' must be in the 'experiment' directory.")
     config_dir = os.path.abspath(os.path.dirname(experiment_dir))
     config_file = os.path.basename(args.config_file)
 
