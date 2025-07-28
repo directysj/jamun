@@ -22,7 +22,6 @@ class SampleMetric(torchmetrics.Metric):
 
     def compute(self) -> mdtraj.Trajectory:
         samples = dim_zero_cat(self.samples)
-        print(f"{samples.shape=}")
         return mdtraj.Trajectory(samples.cpu().numpy(), self.topology)
 
 
