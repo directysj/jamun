@@ -122,6 +122,6 @@ class DiffusionSampler:
         )
 
         return {
-            "sample": y.to("cpu") if y is not None else None,
-            "xhat_traj": y_traj.to("cpu") if y_traj is not None else None,
+            "sample": y if y is not None else None,
+            "xhat_traj": y_traj if y_traj is not None else None,
         }
