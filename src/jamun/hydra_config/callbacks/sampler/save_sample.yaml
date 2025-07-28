@@ -1,0 +1,3 @@
+save_sample:
+  _target_: jamun.callbacks.sampler.SaveSampleCallback
+  datasets: ${init_datasets}
