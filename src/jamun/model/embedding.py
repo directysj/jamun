@@ -61,10 +61,12 @@ class ResidueAtomEmbedder(nn.Module):
         residue_code_embedded = self.residue_code_embedding(topology["residue_code_index"])
         features.append(residue_code_embedded)
 
-        if not self.use_residue_sequence_index:
-            torch.zeros_like(topology["atom_type_index"])
+        if self.use_residue_sequence_index:
+            residue_sequence_index = topology["residue_sequence_index"]
+        else:
+            residue_sequence_index = torch.zeros_like(topology["atom_type_index"])
 
-        residue_sequence_index_embedded = self.residue_index_embedding(topology["residue_sequence_index"])
+        residue_sequence_index_embedded = self.residue_index_embedding(residue_sequence_index)
         features.append(residue_sequence_index_embedded)
 
         features = torch.cat(features, dim=-1)
