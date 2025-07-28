@@ -4,7 +4,8 @@ import os
 import random
 import shutil
 import sys
-from typing import List, Tuple
+import tqdm
+from typing import List, Tuple, Dict
 
 logging.basicConfig(format="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s", level=logging.INFO)
 py_logger = logging.getLogger("process_fast_folding_proteins")
@@ -17,7 +18,7 @@ SPLITS = {
 }
 
 
-def find_xtc_files(root_dir: str) -> List[Tuple[str, str]]:
+def find_xtc_files(root_dir: str) -> Dict[str, str]:
     """
     Recursively find all .xtc files and their containing folders starting from root_dir
 
@@ -25,12 +26,14 @@ def find_xtc_files(root_dir: str) -> List[Tuple[str, str]]:
         root_dir (str): The root directory to start the search from
 
     Returns:
-        list: List of tuples containing (file_path, containing_folder)
+        Dict[str, str]: A dictionary where keys are "containing_folder_filename" and values are full paths to .xtc files
     """
-    xtc_files = []
+    xtc_files = {}
 
     # Walk through directory tree
     for dirpath, dirnames, filenames in os.walk(root_dir):
+        py_logger.info(f"Searching in: {dirpath}")
+
         # Find all files with .xtc extension
         for filename in filenames:
             if not filename.endswith(".xtc") or filename.startswith("."):
@@ -39,7 +42,10 @@ def find_xtc_files(root_dir: str) -> List[Tuple[str, str]]:
             # Get full file path and containing folder
             file_path = os.path.join(dirpath, filename)
             containing_folder = os.path.basename(dirpath)
-            xtc_files.append((file_path, containing_folder))
+            key = f"{containing_folder}_{filename}"
+            assert key not in xtc_files, f"Duplicate key found: {key}"
+
+            xtc_files[key] = file_path
 
     return xtc_files
 
@@ -61,15 +67,11 @@ if __name__ == "__main__":
     if not files:
         raise ValueError("No .xtc files found in the directory.")
 
-    # Check that the folders are unique.
-    # This is because we will be using the folder names as unique identifiers for the files.
-    folders = [folder for _, folder in files]
-    if len(set(folders)) != len(folders):
-        raise ValueError("Found duplicate folders in the directory.")
+    py_logger.info(f"Found {len(files)} .xtc files in the directory.")
 
     # Randomly shuffle the files and folders.
     random.seed(42)
-    files = list(sorted(files, key=lambda x: x[1]))
+    files = list(sorted(files.items(), key=lambda x: x[0]))
     random.shuffle(files)
 
     # Now, create the splits based on the folders.
@@ -83,11 +85,13 @@ if __name__ == "__main__":
 
         # Save the split files as a text file.
         with open(os.path.join(split_dir, "files.txt"), "w") as f:
-            for file_path, folder in split_files:
-                f.write(f"{file_path}\n")
+            for key, input_file in split_files:
+                f.write(f"{input_file}\n")
 
         # Copy the files to the split directory.
-        for file_path, folder in split_files:
-            output_file = os.path.join(split_dir, f"{folder}.xtc")
-            shutil.copy(file_path, output_file)
-            py_logger.info(f"Saved {file_path} as {output_file}")
+        for key, input_file in tqdm.tqdm(split_files, desc=f"Copying files for {split} split"):
+            output_file = os.path.join(split_dir, f"{key}.xtc")
+            shutil.copy(input_file, output_file)
+            # py_logger.info(f"Saved {input_file} as {output_file}")
+        
+        py_logger.info(f"Saved {len(split_files)} files for {split} split in {split_dir}")
