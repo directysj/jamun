@@ -93,8 +93,8 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
             subsample = 1
         self.subsample = subsample
 
-        pdb_file = os.path.join(self.root, pdb_file)
-        topology = md.load_topology(pdb_file)
+        self.pdb_file = os.path.join(self.root, pdb_file)
+        self.original_topology = md.load_topology(self.pdb_file)
 
         if coarse_grained:
             # In the coarse-grained case, we create bonds between consecutive residues.
@@ -107,8 +107,10 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
                 f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
             )
 
-        self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
-        self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)
+        self.top_with_H, self.topology_slice_with_H = preprocess_topology(self.original_topology, keep_hydrogens=True)
+        self.top_without_H, self.topology_slice_without_H = preprocess_topology(
+            self.original_topology, keep_hydrogens=False
+        )
         self.graph_with_H = make_graph_from_topology(self.top_with_H)
         self.graph_without_H = make_graph_from_topology(self.top_without_H)
 
@@ -148,9 +150,15 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
             traj_files = np.random.permutation(traj_files)
 
         for traj_file in traj_files:
-            for traj in md.iterload(traj_file, top=self.top, chunk=self.chunk_size, stride=self.subsample):
+            for traj in md.iterload(
+                traj_file,
+                top=self.original_topology,
+                chunk=self.chunk_size,
+                stride=self.subsample,
+                atom_indices=self.topology_slice,
+            ):
                 for frame in traj:
-                    graph = self.graph.clone()
+                    graph = self.graph.clone("pos")
                     graph.pos = torch.tensor(frame.xyz[0])
                     if self.transform:
                         graph = self.transform(graph)
@@ -162,7 +170,15 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
 
     @functools.cached_property
     def trajectory(self) -> md.Trajectory:
-        return md.load(self.traj_files, top=self.top)
+        return md.load(self.traj_files, top=self.original_topology, atom_indices=self.topology_slice)
+
+    @property
+    def trajectory_files(self) -> Sequence[str]:
+        return self.traj_files
+
+    @property
+    def topology_file(self) -> str:
+        return self.pdb_file
 
 
 @utils.singleton
@@ -270,7 +286,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
         utils.save_pdb(self.traj[0], filename)
 
     def __getitem__(self, idx):
-        graph = self.graph.clone()
+        graph = self.graph.clone("pos")
         graph.pos = torch.tensor(self.traj.xyz[idx])
         if self.transform:
             graph = self.transform(graph)

@@ -2,6 +2,7 @@ import collections
 import os
 import re
 from collections.abc import Sequence
+from typing import Callable, Iterable
 
 import hydra
 import pandas as pd
@@ -13,7 +14,13 @@ from jamun.data._mdtraj import MDtrajDataset, MDtrajIterableDataset
 from jamun.data._sdf import MDtrajSDFDataset
 
 
-def dloader_map_reduce(f, dloader, reduce_fn=torch.cat, verbose: bool = False):
+def dloader_map_reduce(
+    f: Callable[[torch.Tensor], torch.Tensor],
+    dloader: Iterable[torch.Tensor],
+    reduce_fn: Callable[list[torch.Tensor], torch.Tensor] = torch.cat,
+    verbose: bool = False,
+):
+    """Map a function over a data loader and reduce the results."""
     outs = []
     for batch in tqdm(dloader, disable=not verbose):
         outs.append(f(batch))
@@ -188,7 +195,7 @@ def parse_datasets_from_directory_new(
     if len(codes) == 0:
         raise ValueError("No codes found after filtering.")
 
-    # Determine dataset class
+    # Determine dataset class.
     if as_sdf:
         dataset_fn = lambda code: MDtrajSDFDataset(  # noqa: E731
             root,
@@ -215,10 +222,10 @@ def parse_datasets_from_directory_new(
                 **dataset_kwargs,
             )
 
-    # Create datasets
+    # Create datasets.
     datasets = []
     for code in tqdm(codes, desc="Creating datasets"):
-        # Skip codes without pdb files
+        # Skip codes without pdb files.
         if code not in topology_files:
             print(f"Warning: No topology file found for code {code}, skipping.")
             continue

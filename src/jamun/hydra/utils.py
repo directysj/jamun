@@ -1,6 +1,7 @@
+import logging
+
 import hydra
 from omegaconf import DictConfig
-import logging
 
 
 def format_resolver(x: str, pattern: str) -> str:
