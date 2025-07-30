@@ -199,6 +199,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
         verbose: bool = False,
         keep_hydrogens: bool = False,
         coarse_grained: bool = False,
+        atom_indices: Sequence[int] | None = None,
     ):
         self.root = root
         self._label = label
@@ -232,23 +233,26 @@ class MDtrajDataset(torch.utils.data.Dataset):
         if subsample is None or subsample == 0:
             subsample = 1
 
+        # If atom indices are provided, slice the trajectory to only include those atoms.
+        if atom_indices is not None:
+            self.traj = self.traj.atom_slice(atom_indices)
+
         # Subsample the trajectory.
         self.traj = self.traj[start_frame : start_frame + num_frames : subsample]
-        topology = self.traj.topology
 
         if coarse_grained:
             # In the coarse-grained case, we create bonds between consecutive residues.
             atom_indices = [atom.index for atom in topology.atoms]
             for i in range(len(atom_indices) - 1):
-                topology.add_bond(topology.atom(atom_indices[i]), topology.atom(atom_indices[i + 1]))
+                self.traj.topology.add_bond(self.traj.topology.atom(atom_indices[i]), self.traj.topology.atom(atom_indices[i + 1]))
 
             py_logger = logging.getLogger("jamun")
             py_logger.warning(
                 f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
             )
 
-        self.top_with_H, self.topology_slice_with_H = preprocess_topology(topology, keep_hydrogens=True)
-        self.top_without_H, self.topology_slice_without_H = preprocess_topology(topology, keep_hydrogens=False)
+        self.top_with_H, self.topology_slice_with_H = preprocess_topology(self.traj.topology, keep_hydrogens=True)
+        self.top_without_H, self.topology_slice_without_H = preprocess_topology(self.traj.topology, keep_hydrogens=False)
         self.graph_with_H = make_graph_from_topology(self.top_with_H)
         self.graph_without_H = make_graph_from_topology(self.top_without_H)
 
