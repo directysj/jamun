@@ -244,7 +244,9 @@ class MDtrajDataset(torch.utils.data.Dataset):
             # In the coarse-grained case, we create bonds between consecutive residues.
             atom_indices = [atom.index for atom in topology.atoms]
             for i in range(len(atom_indices) - 1):
-                self.traj.topology.add_bond(self.traj.topology.atom(atom_indices[i]), self.traj.topology.atom(atom_indices[i + 1]))
+                self.traj.topology.add_bond(
+                    self.traj.topology.atom(atom_indices[i]), self.traj.topology.atom(atom_indices[i + 1])
+                )
 
             py_logger = logging.getLogger("jamun")
             py_logger.warning(
@@ -252,7 +254,9 @@ class MDtrajDataset(torch.utils.data.Dataset):
             )
 
         self.top_with_H, self.topology_slice_with_H = preprocess_topology(self.traj.topology, keep_hydrogens=True)
-        self.top_without_H, self.topology_slice_without_H = preprocess_topology(self.traj.topology, keep_hydrogens=False)
+        self.top_without_H, self.topology_slice_without_H = preprocess_topology(
+            self.traj.topology, keep_hydrogens=False
+        )
         self.graph_with_H = make_graph_from_topology(self.top_with_H)
         self.graph_without_H = make_graph_from_topology(self.top_without_H)
 
