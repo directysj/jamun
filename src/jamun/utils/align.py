@@ -223,3 +223,36 @@ def align_A_to_B_batched_f(
 ) -> torch.Tensor:
     """Aligns each graph of A to corresponding graph in B."""
     return kabsch_algorithm(A, B, batch, num_graphs, sigma=sigma, correction_order=correction_order)
+
+
+def align_A_to_B_batched_looped_f(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    batch: torch.Tensor,
+    num_graphs: int,
+    sigma: float | None = None,
+    correction_order: int = 0,
+    alignment_batch_size: int = 32,
+) -> torch.Tensor:
+    """Aligns each graph of A to corresponding graph in B, by looping over nodes in the same batch."""
+    A_aligned = torch.zeros_like(A)
+    for i in range(num_graphs // alignment_batch_size + 1):
+        start = i * alignment_batch_size
+        end = min((i + 1) * alignment_batch_size, num_graphs)
+        mask = (batch >= start) & (batch < end)
+        A_i = A[mask]
+        B_i = B[mask]
+        if A_i.shape[0] == 0 or B_i.shape[0] == 0:
+            continue
+
+        batch_offset = batch[mask] - start
+        A_aligned[mask] = align_A_to_B_batched_f(
+            A_i,
+            B_i,
+            batch_offset,
+            num_graphs=end - start,
+            sigma=sigma,
+            correction_order=correction_order,
+        )
+
+    return A_aligned

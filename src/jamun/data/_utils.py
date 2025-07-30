@@ -1,8 +1,7 @@
 import collections
 import os
 import re
-from collections.abc import Sequence
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 
 import hydra
 import pandas as pd
@@ -17,7 +16,7 @@ from jamun.data._sdf import MDtrajSDFDataset
 def dloader_map_reduce(
     f: Callable[[torch.Tensor], torch.Tensor],
     dloader: Iterable[torch.Tensor],
-    reduce_fn: Callable[list[torch.Tensor], torch.Tensor] = torch.cat,
+    reduce_fn: Callable[[list[torch.Tensor]], torch.Tensor] = torch.cat,
     verbose: bool = False,
 ):
     """Map a function over a data loader and reduce the results."""

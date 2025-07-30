@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch_geometric
 
-from jamun.utils import align_A_to_B_batched_f, mean_center_f
+from jamun.utils import align_A_to_B_batched_looped_f, mean_center_f
 
 
 @cache
@@ -98,7 +98,7 @@ def compute_rmsd_metrics(
         with torch.cuda.nvtx.range("mean_center_x"):
             x = mean_center_f(x, batch, num_graphs)
 
-    xhat_aligned = align_A_to_B_batched_f(
+    xhat_aligned = align_A_to_B_batched_looped_f(
         xhat,
         x,
         batch,
