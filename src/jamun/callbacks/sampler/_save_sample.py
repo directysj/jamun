@@ -1,6 +1,7 @@
 import math
 from pathlib import Path
 
+import einops
 import matplotlib.pyplot as plt
 import mdtraj
 import numpy as np
@@ -37,7 +38,9 @@ def log_rama(trajectory, dataset, fabric):
 def log_js(trajectory, dataset, fabric):
     true_trajectory = dataset.trajectory
     js = compute_JS_divergence_of_ramachandran(trajectory, true_trajectory)
-    fabric.log_dict({f"{dataset.label()}/js_divergence": js})
+    if fabric.is_global_zero:
+        wandb.summary[f"{dataset.label()}/n_samples"] = len(trajectory)
+        wandb.summary[f"{dataset.label()}/js_divergence"] = js
 
 
 def log_js_divergence_vs_num_samples(trajectory, dataset, fabric, N: int = 21):
@@ -70,14 +73,21 @@ def log_js_divergence_vs_num_samples(trajectory, dataset, fabric, N: int = 21):
 
 
 class SampleMetric(torchmetrics.Metric):
-    def __init__(self, topology: mdtraj.Topology):
+    def __init__(self, topology: mdtraj.Topology, save_trajectory: bool = False):
         super().__init__()
         self.topology = topology
+        self.save_trajectory = save_trajectory
         self.add_state("samples", default=[], dist_reduce_fx="cat")
 
     def update(self, data: torch_geometric.data.Batch):
         data = data.to(self.device)
-        self.samples.append(data.sample[None, ...])
+
+        if self.save_trajectory:
+            samples = einops.rearrange(data.xhat_traj, "atoms frames dim -> frames atoms dim")
+        else:
+            samples = data.sample[None, ...]
+
+        self.samples.append(samples)
 
     def compute(self) -> mdtraj.Trajectory:
         samples = dim_zero_cat(self.samples)
@@ -85,9 +95,12 @@ class SampleMetric(torchmetrics.Metric):
 
 
 class SaveSampleCallback:
-    def __init__(self, datasets: list):
+    def __init__(self, datasets: list, save_trajectory: bool = False):
         self.datasets = sorted(get_unique_datasets(datasets), key=lambda dataset: dataset.label())
-        self.meters = {dataset.label(): SampleMetric(topology=dataset.topology) for dataset in datasets}
+        self.meters = {
+            dataset.label(): SampleMetric(topology=dataset.topology, save_trajectory=save_trajectory)
+            for dataset in datasets
+        }
 
     def on_sample_start(self, fabric):
         for m in self.meters.values():
