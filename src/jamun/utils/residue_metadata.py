@@ -26,6 +26,7 @@ class ResidueMetadata:
         "VAL",
         "ACE",
         "NME",
+        "UNK",
     ]
 
     # One to three letter code mapping
