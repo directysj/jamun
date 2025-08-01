@@ -6,15 +6,21 @@ from tqdm.auto import tqdm
 
 
 def sigma_grid(sigma_min: float, sigma_max: float, rho: float, num_steps: int) -> torch.Tensor:
-    step_indices = torch.arange(N)
+    step_indices = torch.arange(num_steps, dtype=torch.float32)
     t_steps = (
-        sigma_max ** (1 / rho) + (step_indices / (N - 1)) * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
+        sigma_max ** (1 / rho) + (step_indices / (num_steps - 1)) * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
     ) ** rho
     t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])])  # t_N = 0
     return t_steps
 
 
-def heun_step(f: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], y_hat: torch.Tensor, t_hat: torch.Tensor, t_next: torch.Tensor, use_second_order_correction: bool) -> torch.Tensor:
+def heun_step(
+    f: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    y_hat: torch.Tensor,
+    t_hat: torch.Tensor,
+    t_next: torch.Tensor,
+    use_second_order_correction: bool,
+) -> torch.Tensor:
     # Euler step
     d_cur = f(y_hat, t_hat)  # -t_cur * score_fn(y_cur, t_cur)
     y_next = y_hat + (t_next - t_hat) * d_cur
@@ -50,7 +56,9 @@ def integrate_heun(
         else:
             t_hat = t_cur
             y_hat = y_cur
-        y_next = heun_step(f, y_hat, t_hat, t_next, use_second_order_correction=(i < num_steps - 1) and use_second_order_correction)
+        y_next = heun_step(
+            f, y_hat, t_hat, t_next, use_second_order_correction=(i < num_steps - 1) and use_second_order_correction
+        )
 
         if save_trajectory:
             traj.append(y_next)
@@ -83,7 +91,7 @@ class DiffusionSampler:
         self.sigma_max = sigma_max
         self.sigma_min = sigma_min
         self.rho = rho
-        self.num_t_steps = num_t_steps
+        self.num_steps = num_steps
         self.y_init_distribution = y_init_distribution
         self.verbose = verbose
         self.S_churn = S_churn
