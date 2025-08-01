@@ -2,11 +2,10 @@ from collections.abc import Callable
 
 import numpy as np
 import torch
-from torch import Tensor
 from tqdm.auto import tqdm
 
 
-def sigma_grid(sigma_min: float = 0.002, sigma_max: float = 80.0, rho: float = 7.0, N: int = 64) -> Tensor:
+def sigma_grid(sigma_min: float, sigma_max: float, rho: float, num_steps: int) -> torch.Tensor:
     step_indices = torch.arange(N)
     t_steps = (
         sigma_max ** (1 / rho) + (step_indices / (N - 1)) * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
@@ -15,29 +14,28 @@ def sigma_grid(sigma_min: float = 0.002, sigma_max: float = 80.0, rho: float = 7
     return t_steps
 
 
-def heun_step(f: Callable, y_hat, t_hat, t_next, corrector: bool = True):
+def heun_step(f: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], y_hat: torch.Tensor, t_hat: torch.Tensor, t_next: torch.Tensor, use_second_order_correction: bool) -> torch.Tensor:
     # Euler step
     d_cur = f(y_hat, t_hat)  # -t_cur * score_fn(y_cur, t_cur)
     y_next = y_hat + (t_next - t_hat) * d_cur
-    if corrector:
-        # Second order corrector
+    if use_second_order_correction:
         d_prime = f(y_next, t_next)  # -t_next * score_fn(y_next, t_next)
         y_next = y_hat + (t_next - t_hat) * (0.5 * d_cur + 0.5 * d_prime)
     return y_next
 
 
 def integrate_heun(
-    f: Callable,
-    y_next,
-    t_steps,
-    save_trajectory: bool = False,
-    verbose: bool = False,
-    S_churn=0.0,
-    S_min=0.05,
-    S_max=50.0,
-    S_noise=1.003,
-    num_steps: int = 64,
-    second_order: bool = True,
+    f: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    y_next: torch.Tensor,
+    t_steps: torch.Tensor,
+    S_churn: float,
+    S_min: float,
+    S_max: float,
+    S_noise: float,
+    num_steps: int,
+    use_second_order_correction: bool,
+    save_trajectory: bool,
+    verbose: bool,
 ):
     traj = [] if save_trajectory else None
     if save_trajectory:
@@ -52,7 +50,7 @@ def integrate_heun(
         else:
             t_hat = t_cur
             y_hat = y_cur
-        y_next = heun_step(f, y_hat, t_hat, t_next, corrector=(i < num_steps - 1) and second_order)
+        y_next = heun_step(f, y_hat, t_hat, t_next, use_second_order_correction=(i < num_steps - 1) and use_second_order_correction)
 
         if save_trajectory:
             traj.append(y_next)
@@ -66,25 +64,26 @@ def integrate_heun(
 class DiffusionSampler:
     def __init__(
         self,
-        sigma_min: float = 0.002,
-        sigma_max: float = 80.0,
-        rho: float = 7.0,
-        N: int = 64,
-        y_init_distribution: torch.distributions.Distribution | None = None,
-        verbose: bool = False,
-        S_churn=0,
-        S_min=0,
-        S_max=float("inf"),
-        S_noise=1,
-        save_trajectory=False,
+        sigma_min: float,
+        sigma_max: float,
+        rho: float,
+        num_steps: int,
+        y_init_distribution: torch.distributions.Distribution | None,
+        verbose: bool,
+        S_churn: float,
+        S_min: float,
+        S_max: float,
+        S_noise: float,
+        use_second_order_correction: bool,
+        save_trajectory: bool,
         **kwargs,
     ):
-        self.t_steps = sigma_grid(sigma_min=sigma_min, sigma_max=sigma_max, rho=rho, N=N)
+        self.t_steps = sigma_grid(sigma_min=sigma_min, sigma_max=sigma_max, rho=rho, num_steps=num_steps)
         self.sigma = sigma_max  # compat (used by ModelSamplingWrapper.sample_initial_noisy_positions)
         self.sigma_max = sigma_max
         self.sigma_min = sigma_min
         self.rho = rho
-        self.N = N
+        self.num_t_steps = num_t_steps
         self.y_init_distribution = y_init_distribution
         self.verbose = verbose
         self.S_churn = S_churn
@@ -92,12 +91,13 @@ class DiffusionSampler:
         self.S_max = S_max
         self.S_noise = S_noise
         self.save_trajectory = save_trajectory
+        self.use_second_order_correction = use_second_order_correction
 
     def sample(
         self,
         model,
         batch_size: int | None = None,
-        y_init: Tensor | None = None,
+        y_init: torch.Tensor | None = None,
         **kwargs,
     ):
         if y_init is None:
@@ -105,7 +105,7 @@ class DiffusionSampler:
                 raise RuntimeError("either y_init and y_init_distribution must be supplied")
             y_init = self.y_init_distribution.sample(sample_shape=(batch_size,))
 
-        def f(y, t):
+        def f(y: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             return -t * model.score(y, t)
 
         y, y_traj = integrate_heun(
@@ -118,7 +118,8 @@ class DiffusionSampler:
             S_min=self.S_min,
             S_max=self.S_max,
             S_noise=self.S_noise,
-            num_steps=self.N,
+            num_steps=self.num_steps,
+            use_second_order_correction=self.use_second_order_correction,
         )
 
         return {
