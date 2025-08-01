@@ -3,7 +3,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 
-class SingleMeasurementSampler:
+class WalkJumpSampler:
     """Single Measurement Walk-Jump Sampler."""
 
     def __init__(

@@ -3,5 +3,5 @@ defaults:
   - callbacks: null
   - _self_
 
-_target_: jamun.sampling.walkjump.SingleMeasurementSampler
+_target_: jamun.sampling.WalkJumpSampler
 sigma: ${sigma}

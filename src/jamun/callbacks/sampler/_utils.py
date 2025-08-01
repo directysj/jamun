@@ -34,23 +34,24 @@ class TrajectoryMetricCallback:
             for dataset in datasets
         }
 
-    def on_sample_start(self, sampler):
+    def on_sample_start(self, fabric):
         for meter in self.meters.values():
-            meter.to(sampler.fabric.device)
+            meter.to(fabric.device)
             meter.on_sample_start()
 
     def on_after_sample_batch(
         self,
         sample: Sequence[torch_geometric.data.Batch],
-        sampler,
+        fabric,
+        batch_idx,
     ):
         for sample_graph in sample:
             self.meters[sample_graph.dataset_label].update(sample_graph)
 
         for meter in self.meters.values():
-            sampler.fabric.log_dict(meter.compute())
+            fabric.log_dict(meter.compute())
             meter.on_after_sample_batch()
 
-    def on_sample_end(self, sampler):
+    def on_sample_end(self, fabric):
         for meter in self.meters.values():
             meter.on_sample_end()

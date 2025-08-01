@@ -1,4 +1,0 @@
-interpolate_parameters:
-  _target_: jamun.sampling.walkjump.InterpolateParametersCallback
-  params: {}
-  verbose: false

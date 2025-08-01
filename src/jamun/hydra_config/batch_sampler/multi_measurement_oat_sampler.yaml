@@ -1,9 +1,0 @@
-defaults:
-  - mcmc: baoab.yaml
-  - callbacks: ["measurement_dependent_parameters"]
-  - _self_
-
-_target_: jamun.sampling.walkjump.MultiMeasurementOATSampler
-sigma: ${sigma}
-m: 4
-warm_start: true
