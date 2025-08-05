@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'linux'",
@@ -646,17 +646,18 @@ wheels = [
 
 [[package]]
 name = "e3tools"
-version = "0.1.2"
+version = "0.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "e3nn" },
+    { name = "einops" },
     { name = "jaxtyping" },
     { name = "setuptools" },
     { name = "torch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/c5/05873faa48ccf3b29eb36caaa57dc184a217e37e41baa10130f46b0194f3/e3tools-0.1.2.tar.gz", hash = "sha256:a53354e148aeb3c29ac2a96cecba4ea64d1a3c33c3f756b82871873de9085bad", size = 86812, upload-time = "2025-07-24T23:11:31.292Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/03/d3560619bc9c7d7bb1548a260087201a217400f125f6b8c68e5c5532be3e/e3tools-0.1.3.tar.gz", hash = "sha256:a49d919b6f754767ca3c09eaa6a6e1c12fbddace156572b878bbe40ad70ceaa8", size = 106214, upload-time = "2025-08-04T23:29:52.313Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/50/1b4eff9273a21090a86e9168cfd59a8b32508418007aef045e03724bfc3a/e3tools-0.1.2-py3-none-any.whl", hash = "sha256:6bb8d7e87bb786fcbb5eccc3747d339fca7a0ead89d35074fec4b9864400480d", size = 21534, upload-time = "2025-07-24T23:11:30.181Z" },
+    { url = "https://files.pythonhosted.org/packages/78/c2/76b4ea3bb1426a13d769bf1ae5a13766e8398116f9f158ee5298970c6664/e3tools-0.1.3-py3-none-any.whl", hash = "sha256:39fd064c42f5fe2edd5b15955b5cc514bf64863a5178dd6c041e73423dd03239", size = 21918, upload-time = "2025-08-04T23:29:51.107Z" },
 ]
 
 [[package]]
