@@ -311,8 +311,11 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("sample_sigma"):
             sigma = self.sigma_distribution.sample().to(self.device)
 
-        topology = data.clone()
-        del topology.pos, topology.batch, topology.num_graphs
+        with torch.cuda.nvtx.range("clone_data"):
+            topology = data.clone()
+
+        with torch.cuda.nvtx.range("clear_topology"):
+            del topology.pos, topology.batch, topology.num_graphs
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:
