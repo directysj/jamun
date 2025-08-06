@@ -46,7 +46,7 @@ class Denoiser(pl.LightningModule):
 
             self.g = torch.compile(self.g, **torch_compile_kwargs)
 
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(self.g)
 
         self.optim_factory = optim

@@ -19,5 +19,5 @@ class ScoreDistributionCallback(TrajectoryMetricCallback):
             datasets=datasets,
             metric_fn=lambda dataset: ScoreDistributionMetrics(*args, dataset=dataset, **kwargs),
         )
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(f"Initialized ScoreDistributionCallback with datasets of labels: {list(self.meters.keys())}.")

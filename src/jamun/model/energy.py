@@ -99,7 +99,7 @@ class EnergyModel(pl.LightningModule):
         self.use_torch_compile = use_torch_compile
         self.torch_compile_kwargs = torch_compile_kwargs or {}
 
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(self.g)
 
         self.optim_factory = optim

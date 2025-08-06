@@ -92,7 +92,7 @@ class SaveTrajectory(TrajectoryMetric):
         # utils.save_pdb(pred_trajectory_joined, self.filename_pred("joined", "pdb"))
         pred_trajectory_joined.save_dcd(self.filename_pred("joined", "dcd"))
 
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(f"{self.dataset.label()}: Saved predicted samples to {os.path.abspath(self.output_dir)}")
 
         return {}

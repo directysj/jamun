@@ -41,7 +41,7 @@ class PoseBustersMetrics(TrajectoryMetric):
 
         metrics = {}
         if df is None:
-            py_logger = logging.getLogger("posebusters")
+            py_logger = logging.getLogger(__name__)
             py_logger.info(f"{self.dataset.label()}/PoseBusters found no molecules in the trajectory.")
             return metrics
 
@@ -66,7 +66,7 @@ class PoseBustersMetrics(TrajectoryMetric):
             subsampling_factor = max(len(pred_trajectory) // self.num_molecules_per_trajectory, 1)
             df = run_posebusters_on_trajectory(pred_trajectory[::subsampling_factor])
             if df is None:
-                py_logger = logging.getLogger("posebusters")
+                py_logger = logging.getLogger(__name__)
                 py_logger.info("PoseBusters found no molecules in the trajectory.")
             else:
                 mean_fail_rates = 1 - df.mean()

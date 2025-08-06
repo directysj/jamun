@@ -104,7 +104,7 @@ class MDtrajIterableDataset(torch.utils.data.IterableDataset):
                     self.original_topology.atom(atom_indices[i]), self.original_topology.atom(atom_indices[i + 1])
                 )
 
-            py_logger = logging.getLogger("jamun")
+            py_logger = logging.getLogger(__name__)
             py_logger.warning(
                 f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
             )
@@ -250,7 +250,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
                     self.traj.topology.atom(atom_indices[i]), self.traj.topology.atom(atom_indices[i + 1])
                 )
 
-            py_logger = logging.getLogger("jamun")
+            py_logger = logging.getLogger(__name__)
             py_logger.warning(
                 f"Dataset {self.label()}: No bonds found in topology. Assuming a coarse-grained model and creating bonds between consecutive residues."
             )

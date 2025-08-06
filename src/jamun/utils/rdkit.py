@@ -21,7 +21,7 @@ def to_rdkit_mols(traj: md.Trajectory) -> list[Chem.Mol]:
     traj_mol = Chem.MolFromPDBFile(temp_pdb, removeHs=False, sanitize=False)
 
     if traj_mol is None:
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.warning("Could not convert the trajectory to RDKit mols.")
         return []
 
