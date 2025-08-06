@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import traceback
@@ -24,6 +25,8 @@ from jamun.utils import dist_log, find_checkpoint
 
 dotenv.load_dotenv(".env", verbose=True)
 OmegaConf.register_new_resolver("format", format_resolver)
+
+py_logger = logging.getLogger("jamun")
 
 
 def sample_loop(
@@ -90,6 +93,17 @@ def get_initial_graphs(
 def run(cfg):
     log_cfg = OmegaConf.to_container(cfg, throw_on_missing=True, resolve=True)
 
+    loggers = instantiate_dict_cfg(cfg.get("logger"), verbose=(rank_zero_only.rank == 0))
+    wandb_logger = None
+    for logger in loggers:
+        if isinstance(logger, pl.loggers.WandbLogger):
+            wandb_logger = logger
+
+    callbacks = instantiate_dict_cfg(cfg.get("callbacks"), verbose=(rank_zero_only.rank == 0))
+    fabric = hydra.utils.instantiate(cfg.fabric, callbacks=callbacks, loggers=loggers)
+
+    fabric.launch()
+
     dist_log(f"{OmegaConf.to_yaml(log_cfg)}")
     dist_log(f"{os.getcwd()=}")
     dist_log(f"{torch.__config__.parallel_info()}")
@@ -100,14 +114,8 @@ def run(cfg):
         dist_log(f"Setting float_32_matmul_precision to {matmul_prec}")
         torch.set_float32_matmul_precision(matmul_prec)
 
-    loggers = instantiate_dict_cfg(cfg.get("logger"), verbose=(rank_zero_only.rank == 0))
-    wandb_logger = None
-    for logger in loggers:
-        if isinstance(logger, pl.loggers.WandbLogger):
-            wandb_logger = logger
-
     if rank_zero_only.rank == 0 and wandb_logger:
-        dist_log(f"{wandb_logger.experiment.name=}")
+        py_logger.info(f"{wandb_logger.experiment.name=}")
         wandb_logger.experiment.config.update({"cfg": log_cfg, "version": jamun.__version__, "cwd": os.getcwd()})
 
     # Load the checkpoint either given the wandb run path or the checkpoint path.
@@ -128,10 +136,6 @@ def run(cfg):
         repeat=cfg.repeat_init_samples,
     )
 
-    callbacks = instantiate_dict_cfg(cfg.get("callbacks"), verbose=(rank_zero_only.rank == 0))
-    fabric = hydra.utils.instantiate(cfg.fabric, callbacks=callbacks, loggers=loggers)
-
-    fabric.launch()
     fabric.setup(model)
     model.eval()
 
