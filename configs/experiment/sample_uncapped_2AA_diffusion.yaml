@@ -1,0 +1,42 @@
+# @package _global_
+
+defaults:
+  - override /sampler: "diffusion.yaml"
+  - override /callbacks:
+    - sampler/save_sample.yaml
+  - _self_
+
+callbacks:
+  sampler:
+    save_sample:
+      save_trajectory: false
+
+init_datasets:
+  _target_: jamun.data.parse_datasets_from_directory
+  root: "${paths.data_path}/timewarp/2AA-1-large/test/"
+  traj_pattern: "^(.*)-traj-arrays.npz"
+  pdb_pattern: "^(.*)-traj-state0.pdb"
+  subsample: 1
+  num_workers: 16
+
+batch_sampler:
+  sigma_min: 1e-4
+  sigma_max: 1.0
+  rho: 7
+  num_steps: 64
+  use_second_order_correction: true
+
+finetune_on_init: false
+
+num_batches: 2048
+repeat_init_samples: 16
+num_init_samples_per_dataset: 1
+continue_chain: false
+
+
+wandb_train_run_path: ???
+checkpoint_type: "best_so_far"
+
+logger:
+  wandb:
+    group: sample_uncapped_2AA
