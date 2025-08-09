@@ -93,6 +93,16 @@ def get_initial_graphs(
 def run(cfg):
     log_cfg = OmegaConf.to_container(cfg, throw_on_missing=True, resolve=True)
 
+    rank_zero_logging_level = cfg.get("rank_zero_logging_level", "INFO")
+    non_rank_zero_logging_level = cfg.get("non_rank_zero_logging_level", "ERROR")
+
+    if rank_zero_only.rank == 0:
+        level = logging.getLevelNamesMapping()[rank_zero_logging_level]
+    else:
+        level = logging.getLevelNamesMapping()[non_rank_zero_logging_level]
+
+    py_logger.setLevel(level)
+
     loggers = instantiate_dict_cfg(cfg.get("logger"), verbose=(rank_zero_only.rank == 0))
     wandb_logger = None
     for logger in loggers:
