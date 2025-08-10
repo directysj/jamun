@@ -19,7 +19,7 @@ init_datasets:
   subsample: 1
   num_workers: 16
 
-batch_sampler:
+sampler:
   sigma_min: 1e-4
   sigma_max: 1.0
   rho: 7
