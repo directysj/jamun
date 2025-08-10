@@ -6,11 +6,12 @@ _target_: jamun.sampling.DiffusionSampler
 sigma_min: 0.01
 sigma_max: 1.0
 rho: 7.0
-N: 64
+num_steps: 64
 y_init_distribution: null
 verbose: true
 S_churn: 0.0
 S_min: 0.0
 S_max: 100.0
 S_noise: 1.0
+use_second_order_correction: true
 save_trajectory: true

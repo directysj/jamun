@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import sys
@@ -22,6 +23,8 @@ from jamun.utils import compute_average_squared_distance_from_datasets, dist_log
 dotenv.load_dotenv(".env", verbose=True)
 OmegaConf.register_new_resolver("format", format_resolver)
 
+py_logger = logging.getLogger("jamun")
+
 
 def compute_average_squared_distance_from_config(cfg: OmegaConf) -> float:
     """Computes the average squared distance for normalization from the data."""
@@ -35,6 +38,16 @@ def compute_average_squared_distance_from_config(cfg: OmegaConf) -> float:
 
 def run(cfg):
     log_cfg = OmegaConf.to_container(cfg, throw_on_missing=True, resolve=True)
+
+    rank_zero_logging_level = cfg.get("rank_zero_logging_level", "INFO")
+    non_rank_zero_logging_level = cfg.get("non_rank_zero_logging_level", "ERROR")
+
+    if rank_zero_only.rank == 0:
+        level = logging.getLevelNamesMapping()[rank_zero_logging_level]
+    else:
+        level = logging.getLevelNamesMapping()[non_rank_zero_logging_level]
+
+    py_logger.setLevel(level)
 
     dist_log(f"{OmegaConf.to_yaml(log_cfg)}")
     dist_log(f"{os.getcwd()=}")

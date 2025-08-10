@@ -73,7 +73,7 @@ class MeasureSamplingTimeCallback(pl.Callback):
         fabric.log("sampler/avg_time_per_graph", self.total_sampling_time / self.total_num_graphs, step=batch_idx)
 
         # Log to console
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(
             f"Sampled batch {batch_idx} with {num_graphs} samples in {time_elapsed:.4f} seconds "
             f"({time_elapsed / num_graphs:.4f} seconds per sample)."
@@ -102,7 +102,7 @@ class MeasureSamplingTimeCallback(pl.Callback):
             fabric.log("sampler/std_batch_time", torch.std(torch.tensor(self.batch_times)).item())
 
         # Log to console.
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(
             f"Total sampling time: {self.total_sampling_time:.4f} seconds "
             f"for {self.total_num_graphs} samples "

@@ -46,6 +46,7 @@ def download_file(url: str, path: str, verbose: bool = False, block_size: int | 
             pbar.update(len(data))
 
 
+# FIXME num_workers>0 breaks singleton cacheing of datasets
 def parse_datasets_from_directory(
     root: str,
     traj_pattern: str,

@@ -18,7 +18,7 @@ def instantiate_dict_cfg(cfg: DictConfig | None, verbose: bool = False):
         raise TypeError("cfg must be a DictConfig")
 
     if verbose:
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
 
     for k, v in cfg.items():
         if isinstance(v, DictConfig):

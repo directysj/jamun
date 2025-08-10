@@ -13,6 +13,7 @@ nsys profile \
   -t cuda,nvtx,osrt,cudnn,cublas \
   -s cpu  \
   -x true \
+  --pytorch=autograd-nvtx \
   -o nsys.profile \
   --force-overwrite true \
   --capture-range=cudaProfilerApi \

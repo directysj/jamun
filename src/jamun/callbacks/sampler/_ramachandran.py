@@ -17,7 +17,7 @@ class RamachandranPlotMetricsCallback(TrajectoryMetricCallback):
             datasets=datasets,
             metric_fn=lambda dataset: RamachandranPlotMetrics(dataset=dataset),
         )
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(
             f"Initialized RamachandranPlotMetricsCallback with datasets of labels: {list(self.meters.keys())}."
         )

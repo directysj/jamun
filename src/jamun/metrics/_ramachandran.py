@@ -253,7 +253,7 @@ class RamachandranPlotMetrics(TrajectoryMetric):
     def on_sample_start(self):
         # Hide the matplotlib logging.
         plt.set_loglevel("warning")
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
 
         # Plot the Ramachandran for the true trajectory.
         true_trajectory = self.dataset.trajectory
@@ -285,7 +285,7 @@ class RamachandranPlotMetrics(TrajectoryMetric):
     def compute(self) -> dict[str, float]:
         # Hide the matplotlib logging.
         plt.set_loglevel("warning")
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
 
         # Convert the samples to trajectories.
         pred_trajectories = self.sample_trajectories(new=True)
