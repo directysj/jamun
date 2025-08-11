@@ -1,7 +1,7 @@
 class ResidueMetadata:
     """Metadata for residues and atoms."""
 
-    ATOM_TYPES: list[str] = ["C", "O", "N", "F", "S", "H"]
+    ATOM_TYPES: list[str] = ["C", "O", "N", "F", "S", "H", "Cl", "Br", "I"]
     ATOM_CODES: list[str] = ["C", "O", "N", "S", "CA", "CB", "H"]
     RESIDUE_CODES: list[str] = [
         "ALA",
