@@ -262,8 +262,11 @@ class MDtrajDataset(torch.utils.data.Dataset):
             )
 
         # If atom indices are provided, slice the trajectory to only include those atoms.
-        if atom_indices is not None:
-            self.traj = self.traj.atom_slice(atom_indices)
+        if atom_indices is None:
+            self.atom_indices = None
+        else:
+            self.atom_indices = np.array(atom_indices, dtype=int)
+            self.traj = self.traj.atom_slice(self.atom_indices)
 
         # Subsample the trajectory.
         self.traj = self.traj[start_frame : start_frame + num_frames : subsample]
