@@ -14,7 +14,7 @@ def get_wandb_run_cwd(wandb_run_path: str) -> str:
 def get_wandb_run_config(wandb_run_path: str) -> dict[str, Any]:
     """Get the wandb run config."""
     run = wandb.Api().run(wandb_run_path)
-    py_logger = logging.getLogger("jamun")
+    py_logger = logging.getLogger(__name__)
     py_logger.info(f"Loading checkpoint corresponding to wandb run {run.name} at {run.url}")
     return run.config["cfg"]
 
@@ -67,7 +67,7 @@ def find_checkpoint_in_directory(checkpoint_dir: str, checkpoint_type: str) -> s
 
 def find_checkpoint(wandb_train_run_path: str = None, checkpoint_dir: str = None, checkpoint_type: str = None) -> str:
     """Find the checkpoint based on the wandb run path or the checkpoint directory."""
-    py_logger = logging.getLogger("jamun")
+    py_logger = logging.getLogger(__name__)
     if (wandb_train_run_path and checkpoint_dir) or (not wandb_train_run_path and not checkpoint_dir):
         raise ValueError(
             "Exactly one of wandb_train_run_path or checkpoint_dir must be provided."

@@ -46,7 +46,7 @@ class Denoiser(pl.LightningModule):
 
             self.g = torch.compile(self.g, **torch_compile_kwargs)
 
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(self.g)
 
         self.optim_factory = optim
@@ -173,12 +173,12 @@ class Denoiser(pl.LightningModule):
         c_out = unsqueeze_trailing(c_out, y.ndim - 1)
         c_noise = c_noise.unsqueeze(0)
 
-        # Add edges to the graph.
-        with torch.cuda.nvtx.range("add_edges"):
-            topology = add_edges(y, topology, batch, radial_cutoff=self.max_radius)
-
         with torch.cuda.nvtx.range("scale_y"):
             y_scaled = y * c_in
+
+        # Add edges to the graph.
+        with torch.cuda.nvtx.range("add_edges"):
+            topology = add_edges(y_scaled, topology, batch, radial_cutoff=self.max_radius)
 
         if self.pass_topology_as_atom_graphs:
             topology = to_atom_graphs(topology, batch, num_graphs)
@@ -311,8 +311,11 @@ class Denoiser(pl.LightningModule):
         with torch.cuda.nvtx.range("sample_sigma"):
             sigma = self.sigma_distribution.sample().to(self.device)
 
-        topology = data.clone()
-        del topology.pos, topology.batch, topology.num_graphs
+        with torch.cuda.nvtx.range("clone_data"):
+            topology = data.clone()
+
+        with torch.cuda.nvtx.range("clear_topology"):
+            del topology.pos, topology.batch, topology.num_graphs
 
         x, batch, num_graphs = data.pos, data.batch, data.num_graphs
         if self.rotational_augmentation:

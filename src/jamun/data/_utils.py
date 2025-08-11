@@ -1,4 +1,5 @@
 import collections
+import concurrent.futures
 import os
 import re
 from collections.abc import Callable, Iterable, Sequence
@@ -26,6 +27,11 @@ def dloader_map_reduce(
     return reduce_fn(outs)
 
 
+def dataset_factory_wrapper(x):
+    dataset_class, kwargs = x
+    return dataset_class(**kwargs)
+
+
 def download_file(url: str, path: str, verbose: bool = False, block_size: int | None = None):
     """Download a file from a URL to a local path."""
     response = requests.get(url, stream=True)
@@ -40,6 +46,7 @@ def download_file(url: str, path: str, verbose: bool = False, block_size: int | 
             pbar.update(len(data))
 
 
+# FIXME num_workers>0 breaks singleton cacheing of datasets
 def parse_datasets_from_directory(
     root: str,
     traj_pattern: str,
@@ -49,6 +56,7 @@ def parse_datasets_from_directory(
     max_datasets_offset: int | None = None,
     filter_codes: Sequence[str] | None = None,
     as_iterable: bool = False,
+    num_workers: int = 0,
     **dataset_kwargs,
 ) -> list[MDtrajDataset]:
     """Helper function to create MDtrajDataset objects from a directory of trajectory files."""
@@ -110,16 +118,28 @@ def parse_datasets_from_directory(
     else:
         dataset_class = MDtrajDataset
 
-    datasets = []
-    for code in tqdm(codes, desc="Creating datasets"):
-        dataset = dataset_class(
-            root,
-            traj_files=traj_files[code],
-            pdb_file=pdb_files[code],
-            label=code,
-            **dataset_kwargs,
+    args_list = [
+        (
+            dataset_class,
+            {
+                "root": root,
+                "traj_files": tuple(traj_files[code]),
+                "pdb_file": pdb_files[code],
+                "label": code,
+                **dataset_kwargs,
+            },
         )
-        datasets.append(dataset)
+        for code in codes
+    ]
+
+    if num_workers > 0:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+            datasets = list(
+                tqdm(executor.map(dataset_factory_wrapper, args_list), total=len(args_list), desc="Creating datasets")
+            )
+    else:
+        datasets = list(tqdm(map(dataset_factory_wrapper, args_list), total=len(args_list), desc="Creating datasets"))
+
     return datasets
 
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import traceback
@@ -11,10 +12,12 @@ import torch
 import torch_geometric
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import OmegaConf
+from tqdm import tqdm
 
 e3nn.set_optimization_defaults(jit_script_fx=False)
 
 import jamun
+import jamun.utils
 from jamun.data import MDtrajDataModule, MDtrajDataset
 from jamun.hydra import instantiate_dict_cfg
 from jamun.hydra.utils import format_resolver
@@ -22,6 +25,55 @@ from jamun.utils import dist_log, find_checkpoint
 
 dotenv.load_dotenv(".env", verbose=True)
 OmegaConf.register_new_resolver("format", format_resolver)
+
+py_logger = logging.getLogger("jamun")
+
+
+def sample_loop(
+    fabric,
+    model,
+    sampler,
+    num_batches: int,
+    init_graphs: torch_geometric.data.Data,
+    continue_chain: bool = False,
+):
+    init_graphs = init_graphs.to(fabric.device)
+    model_wrapped = jamun.utils.ModelSamplingWrapper(
+        model=model,
+        init_graphs=init_graphs,
+        sigma=sampler.sigma,
+    )
+
+    y_init = model_wrapped.sample_initial_noisy_positions()
+    v_init = "gaussian"
+
+    fabric.call("on_sample_start", fabric=fabric)
+
+    batches = range(num_batches)
+
+    if fabric.is_global_zero:
+        iterable = tqdm(batches, total=len(batches), desc="Sampling", leave=False)
+    else:
+        iterable = batches
+
+    with torch.inference_mode():
+        for batch_idx in iterable:
+            fabric.call("on_before_sample_batch", fabric=fabric, batch_idx=batch_idx)
+
+            out = sampler.sample(model=model_wrapped, y_init=y_init, v_init=v_init)
+            samples = model_wrapped.unbatch_samples(out)
+
+            # Start next chain from the end state of the previous chain?
+            if continue_chain:
+                y_init = out["y"].to(model_wrapped.device)
+                v_init = out["v"].to(model_wrapped.device)
+            else:
+                y_init = model_wrapped.sample_initial_noisy_positions()
+                v_init = "gaussian"
+
+            fabric.call("on_after_sample_batch", sample=samples, fabric=fabric, batch_idx=batch_idx)
+
+    fabric.call("on_sample_end", fabric=fabric)
 
 
 def get_initial_graphs(
@@ -41,6 +93,27 @@ def get_initial_graphs(
 def run(cfg):
     log_cfg = OmegaConf.to_container(cfg, throw_on_missing=True, resolve=True)
 
+    rank_zero_logging_level = cfg.get("rank_zero_logging_level", "INFO")
+    non_rank_zero_logging_level = cfg.get("non_rank_zero_logging_level", "ERROR")
+
+    if rank_zero_only.rank == 0:
+        level = logging.getLevelNamesMapping()[rank_zero_logging_level]
+    else:
+        level = logging.getLevelNamesMapping()[non_rank_zero_logging_level]
+
+    py_logger.setLevel(level)
+
+    loggers = instantiate_dict_cfg(cfg.get("logger"), verbose=(rank_zero_only.rank == 0))
+    wandb_logger = None
+    for logger in loggers:
+        if isinstance(logger, pl.loggers.WandbLogger):
+            wandb_logger = logger
+
+    callbacks = instantiate_dict_cfg(cfg.get("callbacks"), verbose=(rank_zero_only.rank == 0))
+    fabric = hydra.utils.instantiate(cfg.fabric, callbacks=callbacks, loggers=loggers)
+
+    fabric.launch()
+
     dist_log(f"{OmegaConf.to_yaml(log_cfg)}")
     dist_log(f"{os.getcwd()=}")
     dist_log(f"{torch.__config__.parallel_info()}")
@@ -51,14 +124,8 @@ def run(cfg):
         dist_log(f"Setting float_32_matmul_precision to {matmul_prec}")
         torch.set_float32_matmul_precision(matmul_prec)
 
-    loggers = instantiate_dict_cfg(cfg.get("logger"), verbose=(rank_zero_only.rank == 0))
-    wandb_logger = None
-    for logger in loggers:
-        if isinstance(logger, pl.loggers.WandbLogger):
-            wandb_logger = logger
-
     if rank_zero_only.rank == 0 and wandb_logger:
-        dist_log(f"{wandb_logger.experiment.name=}")
+        py_logger.info(f"{wandb_logger.experiment.name=}")
         wandb_logger.experiment.config.update({"cfg": log_cfg, "version": jamun.__version__, "cwd": os.getcwd()})
 
     # Load the checkpoint either given the wandb run path or the checkpoint path.
@@ -79,13 +146,14 @@ def run(cfg):
         repeat=cfg.repeat_init_samples,
     )
 
-    callbacks = instantiate_dict_cfg(cfg.get("callbacks"), verbose=(rank_zero_only.rank == 0))
-    sampler = hydra.utils.instantiate(cfg.sampler, callbacks=callbacks, loggers=loggers)
-    batch_sampler = hydra.utils.instantiate(cfg.batch_sampler)
+    fabric.setup(model)
+    model.eval()
+
+    sampler = hydra.utils.instantiate(cfg.sampler)
 
     if seed := cfg.get("seed"):
         # During sampling, we want ranks to generate different chains.
-        pl.seed_everything(seed + sampler.fabric.global_rank)
+        pl.seed_everything(seed + fabric.global_rank)
 
     # Run test-time adapation, if specified.
     if finetuning_cfg := cfg.get("finetune_on_init"):
@@ -115,9 +183,10 @@ def run(cfg):
         new_param_sum = sum(p.sum() for p in model.parameters())
         dist_log(f"Model parameters changed: {param_sum} -> {new_param_sum}")
 
-    sampler.sample(
+    sample_loop(
+        fabric=fabric,
         model=model,
-        batch_sampler=batch_sampler,
+        sampler=sampler,
         init_graphs=init_graphs,
         num_batches=cfg.num_batches,
         continue_chain=cfg.continue_chain,

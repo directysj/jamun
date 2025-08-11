@@ -44,6 +44,13 @@ dependencies = [
 jamun_train = "jamun.cmdline.train:main"
 jamun_sample = "jamun.cmdline.sample:main"
 
+[project.optional-dependencies]
+analysis = [
+    "polars>=1.32.0",
+    "pyarrow>=21.0.0",
+    "seaborn>=0.13.2",
+]
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"

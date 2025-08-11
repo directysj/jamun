@@ -19,5 +19,5 @@ class PoseBustersCallback(TrajectoryMetricCallback):
             datasets=datasets,
             metric_fn=lambda dataset: PoseBustersMetrics(*args, dataset=dataset, **kwargs),
         )
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(f"Initialized PoseBustersCallback with datasets of labels: {list(self.meters.keys())}.")

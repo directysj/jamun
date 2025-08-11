@@ -19,5 +19,5 @@ class SaveTrajectoryCallback(TrajectoryMetricCallback):
             datasets=datasets,
             metric_fn=lambda dataset: SaveTrajectory(*args, dataset=dataset, **kwargs),
         )
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(f"Initialized SaveTrajectoryCallback with datasets of labels: {list(self.meters.keys())}.")

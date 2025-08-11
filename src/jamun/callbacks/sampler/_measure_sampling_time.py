@@ -30,15 +30,15 @@ class MeasureSamplingTimeCallback(pl.Callback):
         self.batch_graph_counts = []
         self.start_time = None
 
-    def on_sample_start(self, sampler):
+    def on_sample_start(self, fabric):
         """Called when sampling starts."""
         self.reset()
 
-    def on_before_sample_batch(self, sample, sampler):
+    def on_before_sample_batch(self, fabric, batch_idx):
         """Mark the start time before sampling a batch."""
         self.start_time = time.perf_counter()
 
-    def on_after_sample_batch(self, sample, sampler):
+    def on_after_sample_batch(self, sample, fabric, batch_idx):
         """
         Calculate and log sampling time after a batch is sampled.
 
@@ -65,17 +65,15 @@ class MeasureSamplingTimeCallback(pl.Callback):
         self.batch_graph_counts.append(num_graphs)
 
         # Log metrics
-        sampler = sampler.fabric
-        sampler.log("sampler/batch_sampling_time", time_elapsed)
-        sampler.log("sampler/batch_num_graphs", num_graphs)
-        sampler.log("sampler/batch_time_per_graph", time_elapsed / num_graphs)
-        sampler.log("sampler/total_sampling_time", self.total_sampling_time)
-        sampler.log("sampler/total_num_graphs", self.total_num_graphs)
-        sampler.log("sampler/avg_time_per_graph", self.total_sampling_time / self.total_num_graphs)
+        fabric.log("sampler/batch_sampling_time", time_elapsed, step=batch_idx)
+        fabric.log("sampler/batch_num_graphs", num_graphs, step=batch_idx)
+        fabric.log("sampler/batch_time_per_graph", time_elapsed / num_graphs, step=batch_idx)
+        fabric.log("sampler/total_sampling_time", self.total_sampling_time, step=batch_idx)
+        fabric.log("sampler/total_num_graphs", self.total_num_graphs, step=batch_idx)
+        fabric.log("sampler/avg_time_per_graph", self.total_sampling_time / self.total_num_graphs, step=batch_idx)
 
         # Log to console
-        py_logger = logging.getLogger("jamun")
-        batch_idx = sampler.global_step
+        py_logger = logging.getLogger(__name__)
         py_logger.info(
             f"Sampled batch {batch_idx} with {num_graphs} samples in {time_elapsed:.4f} seconds "
             f"({time_elapsed / num_graphs:.4f} seconds per sample)."
@@ -84,7 +82,7 @@ class MeasureSamplingTimeCallback(pl.Callback):
         # Reset start time
         self.start_time = None
 
-    def on_sample_end(self, sampler):
+    def on_sample_end(self, fabric):
         """Log final statistics when sampling is complete."""
         if self.total_num_graphs == 0:
             return
@@ -92,19 +90,19 @@ class MeasureSamplingTimeCallback(pl.Callback):
         avg_time = self.total_sampling_time / self.total_num_graphs
 
         # Log final metrics.
-        sampler.log("sampler/final_total_sampling_time", self.total_sampling_time)
-        sampler.log("sampler/final_total_num_graphs", self.total_num_graphs)
-        sampler.log("sampler/final_avg_time_per_graph", avg_time)
+        fabric.log("sampler/final_total_sampling_time", self.total_sampling_time)
+        fabric.log("sampler/final_total_num_graphs", self.total_num_graphs)
+        fabric.log("sampler/final_avg_time_per_graph", avg_time)
 
         # Calculate additional statistics.
         if self.batch_times:
-            sampler.log("sampler/min_batch_time", min(self.batch_times))
-            sampler.log("sampler/max_batch_time", max(self.batch_times))
-            sampler.log("sampler/avg_batch_time", sum(self.batch_times) / len(self.batch_times))
-            sampler.log("sampler/std_batch_time", torch.std(torch.tensor(self.batch_times)).item())
+            fabric.log("sampler/min_batch_time", min(self.batch_times))
+            fabric.log("sampler/max_batch_time", max(self.batch_times))
+            fabric.log("sampler/avg_batch_time", sum(self.batch_times) / len(self.batch_times))
+            fabric.log("sampler/std_batch_time", torch.std(torch.tensor(self.batch_times)).item())
 
         # Log to console.
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(
             f"Total sampling time: {self.total_sampling_time:.4f} seconds "
             f"for {self.total_num_graphs} samples "

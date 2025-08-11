@@ -116,7 +116,7 @@ class EMA(Callback):
         connector = trainer._checkpoint_connector
         ckpt_path = connector.resume_checkpoint_path
 
-        if ckpt_path and checkpoint_callback is not None and "NeMo" in type(checkpoint_callback).__name__:
+        if ckpt_path and checkpoint_callback is not None and isinstance(checkpoint_callback, EMAModelCheckpoint):
             ext = checkpoint_callback.FILE_EXTENSION
             if ckpt_path.endswith(f"-EMA{ext}"):
                 rank_zero_info(

@@ -16,7 +16,7 @@ def dist_log(msg: str, logger: logging.Logger = None) -> None:
     """Helper for distributed logging."""
 
     if logger is None:
-        logger = logging.getLogger("jamun")
+        logger = logging.getLogger(__name__)
 
     if torch.distributed.is_initialized():
         world_size = torch.distributed.get_world_size()

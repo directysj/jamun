@@ -19,5 +19,5 @@ class TrajectoryVisualizerCallback(TrajectoryMetricCallback):
             datasets=datasets,
             metric_fn=lambda dataset: TrajectoryVisualizer(*args, dataset=dataset, **kwargs),
         )
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
         py_logger.info(f"Initialized TrajectoryVisualizerCallback with datasets of labels: {list(self.meters.keys())}.")

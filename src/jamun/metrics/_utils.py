@@ -103,7 +103,7 @@ class TrajectoryMetric(torchmetrics.Metric):
 
     def joined_sample_trajectory(self) -> md.Trajectory:
         """Convert the samples to a single MD trajectory."""
-        py_logger = logging.getLogger("jamun")
+        py_logger = logging.getLogger(__name__)
 
         trajectories = utils.coordinates_to_trajectories(self.sample_tensors(new=False), self.dataset.topology)
         py_logger.info(f"{self.dataset.label()}: Joining {len(trajectories)} trajectories into 1.")
