@@ -4,11 +4,11 @@ import os
 from collections.abc import Callable, Sequence
 
 import mdtraj as md
-from mdtraj.formats.pdb.pdbstructure import PdbStructure
 import numpy as np
 import torch
 import torch.utils.data
 import torch_geometric
+from mdtraj.formats.pdb.pdbstructure import PdbStructure
 
 from jamun import utils
 
@@ -238,10 +238,9 @@ class MDtrajDataset(torch.utils.data.Dataset):
         if subsample is None or subsample == 0:
             subsample = 1
 
-        # If atom indices are provided, slice the trajectory to only include those atoms.
-        if infer_atom_indices_from_temperature_factors is not None:
-            
-            with open(pdb_file, "r") as f:
+        # Infer atom indices from temperature factors, used in FEP datasets.
+        if infer_atom_indices_from_temperature_factors:
+            with open(pdb_file) as f:
                 struct = PdbStructure(f, load_all_models=True)
             temperature_factors = np.asarray([atom.temperature_factor for atom in struct.iter_atoms()])
             lambda_0_indices = np.where(temperature_factors <= 0.5)[0]
@@ -262,6 +261,7 @@ class MDtrajDataset(torch.utils.data.Dataset):
                 f"Dataset {self.label()}: Using atom indices based on temperature factors: {len(atom_indices)} atoms with indices {atom_indices}."
             )
 
+        # If atom indices are provided, slice the trajectory to only include those atoms.
         if atom_indices is not None:
             self.traj = self.traj.atom_slice(atom_indices)
 
