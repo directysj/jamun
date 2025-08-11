@@ -4,6 +4,7 @@ import os
 from collections.abc import Callable, Sequence
 
 import mdtraj as md
+from mdtraj.formats.pdb.pdbstructure import PdbStructure
 import numpy as np
 import torch
 import torch.utils.data
@@ -200,6 +201,8 @@ class MDtrajDataset(torch.utils.data.Dataset):
         keep_hydrogens: bool = False,
         coarse_grained: bool = False,
         atom_indices: Sequence[int] | None = None,
+        infer_atom_indices_from_temperature_factors: bool = False,
+        lambda_for_atom_indices: int | None = None,
     ):
         self.root = root
         self._label = label
@@ -234,6 +237,29 @@ class MDtrajDataset(torch.utils.data.Dataset):
             subsample = 1
 
         # If atom indices are provided, slice the trajectory to only include those atoms.
+        if infer_atom_indices_from_temperature_factors is not None:
+            
+            with open(pdb_file, "r") as f:
+                struct = PdbStructure(f, load_all_models=True)
+            temperature_factors = np.asarray([atom.temperature_factor for atom in struct.iter_atoms()])
+            lambda_0_indices = np.where(temperature_factors <= 0.5)[0]
+            lambda_1_indices = np.where(temperature_factors >= 0.5)[0]
+
+            if lambda_for_atom_indices == 0:
+                atom_indices = lambda_0_indices
+            elif lambda_for_atom_indices == 1:
+                atom_indices = lambda_1_indices
+            else:
+                raise ValueError(
+                    f"Invalid value for lambda_for_atom_indices: {lambda_for_atom_indices}. "
+                    "Expected 0 or 1 to select atoms based on temperature factors."
+                )
+
+            py_logger = logging.getLogger("jamun")
+            py_logger.info(
+                f"Dataset {self.label()}: Using atom indices based on temperature factors: {len(atom_indices)} atoms with indices {atom_indices}."
+            )
+
         if atom_indices is not None:
             self.traj = self.traj.atom_slice(atom_indices)
 
