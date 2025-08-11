@@ -21,12 +21,20 @@ def coordinates_to_trajectories(coords: torch.Tensor | np.ndarray, topology: md.
     return [md.Trajectory(traj_coords, topology) for traj_coords in coords]
 
 
-def save_pdb(traj: md.Trajectory, path: str) -> None:
-    """Saves a trajectory to a PDB file, fixing bugs in mdtraj.save_pdb."""
+def save_pdb(traj: md.Trajectory, path: str, hetatm: bool = False) -> None:
+    """Saves a trajectory to a PDB file, fixing bugs in mdtraj.save_pdb.
+
+    Args:
+        traj: MDTraj trajectory object
+        path: Output file path
+        hetatm: If True, write atoms as HETATM records instead of ATOM records
+    """
     topology = traj.topology
     unique_bonds = set()
     for bond in traj.topology.bonds:
         unique_bonds.add((bond.atom1.index, bond.atom2.index))
+
+    record_type = "HETATM" if hetatm else "ATOM  "
 
     with open(path, "w") as f:
         for frame_index, frame in enumerate(traj.xyz):
@@ -36,7 +44,7 @@ def save_pdb(traj: md.Trajectory, path: str) -> None:
                 atom = topology.atom(atom_index)
                 x, y, z = positions * 10
                 f.write(
-                    f"ATOM  {atom_index + 1:5d} {atom.name:<4s} {atom.residue.name:3s} {atom.residue.chain.index:1d}{atom.residue.index + 1:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {atom.element.symbol:>2s}\n"
+                    f"{record_type}{atom_index + 1:5d} {atom.name:<4s} {atom.residue.name:3s} {atom.residue.chain.index:1d}{atom.residue.index + 1:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {atom.element.symbol:>2s}\n"
                 )
 
             num_atoms = topology.n_atoms
